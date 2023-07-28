@@ -3,7 +3,11 @@ import { createDomVariables } from './dom.js'
 
 createDomVariables()
 
-db.readFile('api')
+let apiData
+db.readFile('users.json').then((data) => {
+  apiData = data
+  console.log(apiData)
+})
 
 const userData = {
   id: Math.floor(Math.random() * Math.pow(10, 8)),
@@ -13,14 +17,18 @@ const userData = {
 };
 
 sendDataBtn.onclick = () => {
-  db.write('api', userData)
+  db.write('users.json', userData)
+  db.readFile('users.json').then((data) => {
+    apiData = data
+    console.log(apiData)
+  })
 }
 updateDataBtn.onclick = () => {
-  db.update('api/1', {nickname: 'superDroxus'})
+  db.update(`users.json/${apiData[0].id}`, {nickname: 'superDroxus'})
 }
 pushDataBtn.onclick = () => {
-  db.push('api', userData)
+  db.push('users.json', userData)
 }
 deleteDataBtn.onclick = () => {
-  db.delete('api/1')
+  db.delete(`users.json/${apiData[0].id}`)
 }

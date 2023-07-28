@@ -15,19 +15,20 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api', (req, res) => {
-  fs.readFile('../MessengerDB/users.json', 'utf8', (err, data) => {
+app.get('/', (req, res) => {
+  const path = req.query.path;
+  fs.readFile(path, 'utf8', (err, data) => {
     res.json(JSON.parse(data));
   })
 });
 
-app.post('/api', (req, res) => {
+app.post('/', (req, res) => {
   try {
-    const userData = req.body;
-    const filePath = '../MessengerDB/users.json';
-    const jsonData = JSON.stringify(userData, null, 2);
+    const { data, path } = req.body
+    // const userData = req.body.data;
+    const jsonData = data;
 
-    fs.writeFile(filePath, jsonData, (err) => {
+    fs.writeFile(path, jsonData, (err) => {
       if (err) {
         console.error('Error writing to file:', err);
         res.status(500).json({ error: 'Failed to write to users.json' });
@@ -42,21 +43,19 @@ app.post('/api', (req, res) => {
   }
 });
 
-app.put('/api/:id', (req, res) => {
+app.put('/:id', (req, res) => {
   const userId = parseInt(req.params.id);
-  const updatedUser = req.body;
-
-  fs.readFile('../MessengerDB/users.json', 'utf8', (err, data) => {
-    let users = JSON.parse(data)
+  const { data, path } = req.body
+  fs.readFile(path, 'utf8', (err, dataFile) => {
+    let users = JSON.parse(dataFile)
     const userIndex = users.findIndex(user => user.id === userId);
 
     if (userIndex === -1) {
       return res.status(404).json({ message: `User with ID ${userId} not found` });
     }
-    Object.entries(updatedUser).forEach(([key, value]) => {
+    Object.entries(data).forEach(([key, value]) => {
       users[userIndex][key] = value;
     });
-
     let jsonData = JSON.stringify(users, null, 2);
     fs.writeFile('../MessengerDB/users.json', jsonData, (err) => {
       if (err) {
@@ -70,14 +69,17 @@ app.put('/api/:id', (req, res) => {
   })
 });
 
-app.delete('/api/:id', (req, res) => {
-  const userId = parseInt(req.params.id);
-  fs.readFile('../MessengerDB/users.json', 'utf8', (err, data) => {
+app.delete('/', (req, res) => {
+  const pathQuery = req.query.path;
+  const userId = pathQuery.slice(pathQuery.lastIndexOf('/')+1, pathQuery.length)
+  const path = pathQuery.slice(0, pathQuery.lastIndexOf('/'))
+
+  fs.readFile(path, 'utf8', (err, data) => {
     let users = JSON.parse(data)
-    users = users.filter(user => user.id !== userId);
-  
+    users = users.filter(user => user.id !== Number(userId));
     let jsonData = JSON.stringify(users, null, 2);
-    fs.writeFile('../MessengerDB/users.json', jsonData, (err) => {
+    
+    fs.writeFile(path, jsonData, (err) => {
       if (err) {
         console.error('Error writing to file:', err);
         res.status(500).json({ error: 'Failed to write to users.json' });

@@ -1,20 +1,28 @@
 const serverPath = 'http://localhost:3000/'
+const dbPath = '../MessengerDB/'
 export const db = {
     readFile: (path) => {
-        fetch(serverPath + path).then(response => response.json()).then(data => {
-          // Handle the response from the server
-          console.log(data);
-        }).catch(error => {
-          console.error(error);
-        });
+        return new Promise ((resolve) => {
+          fetch(serverPath + '?path=' + dbPath + path).then(response => response.json()).then(data => {
+            resolve(data)
+          }).catch(error => {
+            console.error(error);
+          });
+        })
     }, 
     write: (path, data) => {
-        fetch(serverPath + path, {
+      if (!Array.isArray(data)) {
+        data = [data]
+      }
+        fetch(serverPath, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(data)
+          body: JSON.stringify({
+            data: JSON.stringify(data, null, 2),
+            path: dbPath + path
+          }) 
         }).then(response => {
             if (!response.ok) {
               throw new Error('Network response was not ok');
@@ -27,29 +35,37 @@ export const db = {
           });  
     },
     push: (path, data) => {
-      fetch(serverPath + path).then(response => response.json()).then(gettedData => {
+      db.readFile(path).then(gettedData => {
         if (!Array.isArray(gettedData)) {
           gettedData = [gettedData]
         }
         gettedData.push(data)
         db.write(path, gettedData)
-      }).catch(error => {
+      })
+      .catch(error => {
         console.error(error);
       });
     },
     update: (path, data) => {
-      fetch(serverPath + path, {
+      let forServerPath = path.slice(path.lastIndexOf('/')+1, path.length)
+      let basicPath = path.slice(0, path.lastIndexOf('/'))
+      console.log(basicPath)
+      fetch(serverPath + forServerPath, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        data: data,
+        path: dbPath + basicPath
+      }) 
+       
     })
       .then(response => {
         if (response.ok) {
-          console.log('User updated successfully');
+          console.log('Updated successfully');
         } else {
-          console.error('Failed to update user');
+          console.error('Failed to update');
         }
       })
       .catch(error => {
@@ -57,13 +73,13 @@ export const db = {
       });
     },
     delete: (path) => {
-      fetch(serverPath + path, {
+      fetch(serverPath + '?path=' + dbPath + path, {
         method: 'DELETE'
       }).then(response => {
           if (response.ok) {
-            console.log('User deleted successfully');
+            console.log('Deleted successfully');
           } else {
-            console.error('Failed to delete user');
+            console.error('Failed to delete');
           }
         })
         .catch(error => {
