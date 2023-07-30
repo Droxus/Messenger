@@ -85,5 +85,43 @@ export const db = {
         .catch(error => {
           console.error('Error:', error);
         });
+    },
+    sendMedia: (path, file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', event => {
+        if (event.lengthComputable) {
+          const percentage = Math.round((event.loaded / event.total) * 100);
+          console.log(`Uploading: ${percentage}%`);
+        }
+      });
+      xhr.addEventListener('load', () => {
+        console.log('Upload complete!');
+      });
+      xhr.addEventListener('error', () => {
+        console.error('Upload failed!');
+      });
+
+      xhr.open('POST', `http://localhost:3000/upload?path=${dbPath + path + '/'}`);
+      xhr.send(formData);
+    },
+    getMedia: (path) => {
+      return new Promise((resolve) => {
+        let fileName = path.slice(path.lastIndexOf('/')+1, path.length)
+        let basicPath = path.slice(0, path.lastIndexOf('/'))
+
+        fetch(serverPath + `file/${fileName}?path=${dbPath + basicPath}`).then(response => {
+          if (response.ok) {
+            resolve(response.blob());
+          } else {
+            throw new Error('File not found.');
+          }
+        }).catch(error => {
+          console.error('Error fetching file:', error);
+        });
+      })
     }
 }

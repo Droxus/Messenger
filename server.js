@@ -1,7 +1,13 @@
 const express = require('express');
 const fs = require('fs');
-
+const multer = require('multer');
 const app = express();
+const path = require('path');
+const { v4: uuidv4 } = require('uuid'); // Import uuid v4 from the uuid library
+
+const cors = require('cors'); // Import the cors package
+// Enable CORS for all routes
+app.use(cors());
 
 const port = process.env.port ?? 3000;
 
@@ -90,6 +96,44 @@ app.delete('/', (req, res) => {
     });
   })
 });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, '../MessengerDB/');
+  },
+  filename: function (req, file, cb) {
+    console.log(file)
+    cb(null, file.originalname);
+  },
+});
+const upload = multer({ storage: storage });
+
+app.post('/upload', upload.single('file'), (req, res) => {
+  const file = req.file;
+  const pathParam =  req.query.path;
+  const uniqueFilename = uuidv4() + path.extname(file.originalname);
+  const newPath = pathParam + uniqueFilename
+
+  fs.renameSync(file.path, newPath);
+  if (req.file) {
+    res.send('File uploaded successfully');
+  } else {
+    res.status(400).send('No file uploaded');
+  }
+});
+
+app.get('/file/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const reqPath = req.query.path
+  const filePath = path.join(__dirname, reqPath, filename);
+
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.sendStatus(404);
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
