@@ -123,5 +123,86 @@ export const db = {
           console.error('Error fetching file:', error);
         });
       })
-    }
+    },
+    createFolder: (path) => {
+      return new Promise ((resolve) => {
+        fetch(serverPath + `createFolder?path=${dbPath + path}`).then(data => {
+          resolve(data)
+        }).catch(error => {
+          console.error(error);
+        });
+      })
+    },
+    signUpUser: (login, password, email) => {
+      return new Promise((resolve) => {
+        fetch(serverPath + 'signUp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            login: login,
+            password: password,
+            email: email,
+            path: dbPath
+          }) 
+        }).then(response => {
+            if (!response.ok) {
+              resolve(false)
+              throw new Error('Network response was not ok');
+            }
+            return response.json();
+          }).then(data => {
+            if (data.id) {
+              const newUserPublic = {
+                id: data.id,
+                login: data.login,
+                nickname: data.login,
+                description: data.description
+              }
+  
+              db.push('users.json', newUserPublic)
+              resolve(true)
+            } else {
+              console.log('Sign up error')
+              resolve(false)
+            }
+          }).catch(error => {
+            resolve(false)
+            console.error('Error:', error);
+          });
+      })
+    },
+    signInUser: (login, password) => {
+      return new Promise((resolve) => {
+        fetch(serverPath + 'signIn', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            login: login,
+            password: password,
+            path: dbPath
+          }) 
+        }).then(response => {
+            if (!response.ok) {
+              resolve(false)
+              throw new Error('Network response was not ok');
+            }
+            return response.json();
+          }).then(data => {
+            if (data.id) {
+              console.log(data)
+              resolve(true)
+            } else {
+              console.log(data.message)
+              resolve(false)
+            }
+          }).catch(error => {
+            resolve(false)
+            console.error('Error:', error);
+          });
+      })
+    },  
 }

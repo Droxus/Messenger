@@ -3,11 +3,12 @@ const fs = require('fs');
 const multer = require('multer');
 const app = express();
 const path = require('path');
-const { v4: uuidv4 } = require('uuid'); // Import uuid v4 from the uuid library
-
+const { v4: uuidv4 } = require('uuid');
 const cors = require('cors'); // Import the cors package
-// Enable CORS for all routes
-app.use(cors());
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+app.use(cors()); // Enable CORS for all routes
 
 const port = process.env.port ?? 3000;
 
@@ -31,7 +32,6 @@ app.get('/', (req, res) => {
 app.post('/', (req, res) => {
   try {
     const { data, path } = req.body
-    // const userData = req.body.data;
     const jsonData = data;
 
     fs.writeFile(path, jsonData, (err) => {
@@ -52,6 +52,7 @@ app.post('/', (req, res) => {
 app.put('/:id', (req, res) => {
   const userId = parseInt(req.params.id);
   const { data, path } = req.body
+
   fs.readFile(path, 'utf8', (err, dataFile) => {
     let users = JSON.parse(dataFile)
     const userIndex = users.findIndex(user => user.id === userId);
@@ -63,7 +64,7 @@ app.put('/:id', (req, res) => {
       users[userIndex][key] = value;
     });
     let jsonData = JSON.stringify(users, null, 2);
-    fs.writeFile('../MessengerDB/users.json', jsonData, (err) => {
+    fs.writeFile(path, jsonData, (err) => {
       if (err) {
         console.error('Error writing to file:', err);
         res.status(500).json({ error: 'Failed to write to users.json' });
@@ -134,6 +135,127 @@ app.get('/file/:filename', (req, res) => {
   }
 });
 
+app.get('/createFolder', (req, res) => {
+  const path = req.query.path;
+
+  fs.mkdir(path, (err) => {
+    if (err) {
+      console.error('Error creating folder:', err);
+    } else {
+      res.send('Folder created successfully!');
+    }
+  });
+});
+
+app.post('/signUp', (req, res) => {
+  try {
+    const { login, password, email, path } = req.body
+    const id = String(uuidv4())
+    console.log(login, password, email, id)
+
+    new Promise((resolve) => {
+      fs.readFile(path + 'users.json', 'utf8', (err, data) => {
+        resolve(JSON.parse(data))
+      })
+    }).then((allUsers) => {
+      if (allUsers.find(element => element.login == login)) return res.json({ error: 'User with this login is already registered' });
+
+      new Promise((resolve) => {
+        bcrypt.hash(password, saltRounds, (err, hash) => {
+          if (err) {
+            console.error('Error hashing password:', err);
+          } else {
+            resolve(hash)
+            console.log('Hashed password:', hash);
+          }
+        })
+      }).then((hashedPassword) => {
+        const newUser = {
+          id: id,
+          login: login,
+          password: hashedPassword,
+          email: email,
+          nickname: login,
+          description: 'Here no description'
+        }
+  
+        if (!fs.existsSync(path + 'users')) {
+          fs.mkdir(path + 'users', (err) => {
+            if (err) {
+              console.error('Error creating folder:', err);
+            }
+          });
+        }
+        
+        fs.mkdir(path + 'users/' + id, (err) => {
+          if (err) {
+            console.error('Error creating folder:', err);
+          }
+        });
+  
+        fs.writeFile(path + `users/${id}/user.json`, JSON.stringify(newUser, null, 2), (err) => {
+          if (err) {
+            console.error('Error writing to file:', err);
+          } else {
+            res.json(newUser)
+            console.log('Data has been written to file');
+          }
+        });
+      })
+
+  })
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/signIn', (req, res) => {
+  try {
+    const { login, password, path } = req.body
+    console.log(login, password)
+
+    new Promise((resolve) => {
+      fs.readFile(path + 'users.json', 'utf8', (err, data) => {
+        resolve(JSON.parse(data))
+      })
+    }).then((allUsers) => {
+      let currentUser = allUsers.find(element => element.login == login)
+
+      if (currentUser) {
+        return new Promise((resolve) => {
+          fs.readFile(path + `users/${currentUser.id}/user.json`, 'utf8', (err, data) => {
+            let userData = JSON.parse(data)
+
+            bcrypt.compare(password, userData.password, (err, result) => {
+              if (err) {
+                console.error('Error comparing passwords:', err);
+                resolve(false)
+                return res.json({ message: 'Wrong password' });
+              } else {
+                if (result) {
+                  console.log('Login successful');
+                  resolve(true)
+                  return res.send(userData)
+                } else {
+                  console.log('Invalid credentials');
+                  resolve(false)
+                  return res.json({ message: 'Wrong password' });
+                }
+              }
+            });
+          })
+        })
+      } else {
+        return res.json({ message: 'Wrong login' });
+      }
+    })
+
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

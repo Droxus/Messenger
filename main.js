@@ -37,3 +37,12 @@ deleteDataBtn.onclick = () => {
 sendFileBtn.onclick = () => {
   db.sendMedia('loaded', fileInp.files[0])
 }
+createFolderBtn.onclick = () => {
+  db.createFolder('ThisFolder')
+}
+signUpUserBtn.onclick = () => {
+  db.signUpUser('Sashsa', 'test3030', 'droxus@gmail.com')
+}
+signInUserBtn.onclick = () => {
+  db.signInUser('Sashsa', 'test3030')
+}
