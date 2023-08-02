@@ -1,3 +1,4 @@
+const dbPath = '../MessengerDB/'
 const express = require('express');
 const fs = require('fs');
 const multer = require('multer');
@@ -7,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors'); // Import the cors package
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
+const crypto = require('crypto');
 
 app.use(cors()); // Enable CORS for all routes
 
@@ -31,8 +33,14 @@ app.get('/', (req, res) => {
 
 app.post('/', (req, res) => {
   try {
-    const { data, path } = req.body
+    const { data, path } = req.body;
     const jsonData = data;
+
+    if (path.charAt(path.length-1) == '/') {
+      const id = String(uuidv4());
+      path = path + id  + '.json';
+      data.id = id;
+    }
 
     fs.writeFile(path, jsonData, (err) => {
       if (err) {
@@ -75,6 +83,9 @@ app.put('/:id', (req, res) => {
     });
   })
 });
+function updateField(path, fieldName, value) {
+
+}
 
 app.delete('/', (req, res) => {
   const pathQuery = req.query.path;
@@ -137,126 +148,243 @@ app.get('/file/:filename', (req, res) => {
 
 app.get('/createFolder', (req, res) => {
   const path = req.query.path;
-
-  fs.mkdir(path, (err) => {
-    if (err) {
-      console.error('Error creating folder:', err);
-    } else {
-      res.send('Folder created successfully!');
-    }
-  });
+  createFolder(path)
 });
 
-app.post('/signUp', (req, res) => {
-  try {
-    const { login, password, email, path } = req.body
+app.post('/signUp', async (req, res) => {
+    const { login, password, email } = req.body
     const id = String(uuidv4())
     console.log(login, password, email, id)
 
-    new Promise((resolve) => {
-      fs.readFile(path + 'users.json', 'utf8', (err, data) => {
-        resolve(JSON.parse(data))
-      })
-    }).then((allUsers) => {
-      if (allUsers.find(element => element.login == login)) return res.json({ error: 'User with this login is already registered' });
+    allUsers = await readFile(dbPath + 'users.json')
+    if (allUsers.find(element => element.login == login)) return res.json({ error: 'User with this login is already registered' });
 
-      new Promise((resolve) => {
-        bcrypt.hash(password, saltRounds, (err, hash) => {
-          if (err) {
-            console.error('Error hashing password:', err);
-          } else {
-            resolve(hash)
-            console.log('Hashed password:', hash);
-          }
-        })
-      }).then((hashedPassword) => {
-        const newUser = {
-          id: id,
-          login: login,
-          password: hashedPassword,
-          email: email,
-          nickname: login,
-          description: 'Here no description'
-        }
-  
-        if (!fs.existsSync(path + 'users')) {
-          fs.mkdir(path + 'users', (err) => {
-            if (err) {
-              console.error('Error creating folder:', err);
-            }
-          });
-        }
-        
-        fs.mkdir(path + 'users/' + id, (err) => {
-          if (err) {
-            console.error('Error creating folder:', err);
-          }
-        });
-  
-        fs.writeFile(path + `users/${id}/user.json`, JSON.stringify(newUser, null, 2), (err) => {
-          if (err) {
-            console.error('Error writing to file:', err);
-          } else {
-            res.json(newUser)
-            console.log('Data has been written to file');
-          }
-        });
-      })
-
-  })
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    hashedPassword = await makeHash(password)
+    const newUserPublic = {
+      id: id,
+      login: login,
+      nickname: login,
+      description: 'Here no description'
+    } 
+    const newUser = { ...newUserPublic}
+    newUser.email = email
+    newUser.password = hashedPassword
+    console.log(newUser)
+    
+    await createFolder(dbPath + 'users')
+    await createFolder(dbPath + 'users/' + id)
+    await writeFile(dbPath + `users/${id}/user.json`, newUser)
+    await writeFile(`${dbPath}users/${id}/chats.json`, [])
+    await pushValueIntoField(dbPath + 'users.json', false, newUserPublic)
+    return res.json(newUser);
 });
 
-app.post('/signIn', (req, res) => {
-  try {
-    const { login, password, path } = req.body
+app.post('/signIn', async (req, res) => {
+    const { login, password } = req.body
     console.log(login, password)
 
-    new Promise((resolve) => {
-      fs.readFile(path + 'users.json', 'utf8', (err, data) => {
-        resolve(JSON.parse(data))
-      })
-    }).then((allUsers) => {
-      let currentUser = allUsers.find(element => element.login == login)
+    allUsers = await readFile(dbPath + 'users.json')
+    let currentUser = allUsers.find(element => element.login == login)
 
-      if (currentUser) {
-        return new Promise((resolve) => {
-          fs.readFile(path + `users/${currentUser.id}/user.json`, 'utf8', (err, data) => {
-            let userData = JSON.parse(data)
+    if (currentUser) {
+      let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+      makeCompare(password, userData.password)
+      return res.json(userData);
+    } else {
+      return res.json({ message: 'Wrong login' });
+    }
+});
 
-            bcrypt.compare(password, userData.password, (err, result) => {
-              if (err) {
-                console.error('Error comparing passwords:', err);
-                resolve(false)
-                return res.json({ message: 'Wrong password' });
-              } else {
-                if (result) {
-                  console.log('Login successful');
-                  resolve(true)
-                  return res.send(userData)
-                } else {
-                  console.log('Invalid credentials');
-                  resolve(false)
-                  return res.json({ message: 'Wrong password' });
-                }
-              }
-            });
-          })
-        })
-      } else {
-        return res.json({ message: 'Wrong login' });
-      }
+app.post('/createGroupChat', async (req, res) => {
+    let { data } = req.body;
+    const chatID = String(uuidv4());
+    const creationTime = new Date().getTime();
+    const jsonData = JSON.parse(data)
+
+    jsonData.id = chatID;
+    jsonData.creationTime = creationTime;
+    jsonData.messages = []
+    jsonData.aesKey = crypto.randomBytes(32).toString('hex');
+
+    await createFolder(dbPath + 'chats')
+    await writeFile(`${dbPath}chats/${chatID}.json`, jsonData)
+
+    jsonData.participants.forEach(async (participant) => {
+      await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, chatID)
     })
+    return res.json(jsonData);
+});
 
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+app.post('/joinGroupChat', async (req, res) => {
+  let { data } = req.body;
+  const jsonData = JSON.parse(data)
+  const participant = {
+    id: jsonData.userID,
+    followedUserID: jsonData.followedUserID
   }
+  await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'participants', participant)
+  await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, jsonData.chatID)
+  const thisChat = await readFile(`${dbPath}chats/${jsonData.chatID}.json`)
+  return res.json(thisChat)
+});
+
+app.post('/sendMessageChat', async (req, res) => {
+  let { data } = req.body;
+  const jsonData = JSON.parse(data);
+  const messageID = String(uuidv4());
+  const creationTime = new Date().getTime();
+
+  let { aesKey } = await readFile(`${dbPath}chats/${jsonData.chatID}.json`)
+  aesKey = Buffer.from(aesKey, 'hex')
+  console.log(aesKey)
+  const encryptedMsg = await encrypt(jsonData.message, aesKey)
+
+  const message = {
+    id: messageID,
+    creationTime: creationTime,
+    userID: jsonData.userID,
+    replied: jsonData.replied,
+    content: encryptedMsg,
+    mediafiles: jsonData.mediafiles
+  }
+
+  await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'messages', message)
+  return res.json(message)
 });
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+function encrypt(data, key) {
+  return new Promise((resolve) => {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encryptedData = cipher.update(data, 'utf8', 'hex');
+    encryptedData += cipher.final('hex');
+    resolve({
+      iv: iv.toString('hex'),
+      encryptedData,
+    })
+  })
+}
+
+function decrypt(encryptedData, key, iv) {
+  return new Promise((resolve) => {
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
+    let decryptedData = decipher.update(encryptedData, 'hex', 'utf8');
+    decryptedData += decipher.final('utf8');
+    resolve(decryptedData)
+  })
+}
+
+// const aesKey = crypto.randomBytes(32);
+// const originalData = 'Hello, World! Hello, World!';
+
+// const encrypted = encrypt(originalData, aesKey);
+// console.log('Encrypted Data:', encrypted);
+
+// const decrypted = decrypt(encrypted.encryptedData, aesKey, encrypted.iv);
+// console.log('Decrypted Data:', decrypted);
+
+function pushValueIntoField(path, fieldName, value) {
+  return new Promise((resolve) => {
+    readFile(path).then((data) => {
+        console.log(data)
+        if (fieldName) {
+          if (!Array.isArray(data[fieldName])) {
+            data[fieldName] = [data[fieldName]]
+          }
+          if (value.id) {
+            if (!data[fieldName].some(element => element.id === value.id) && value.id) {
+              data[fieldName] = Array.from(new Set(data[fieldName]).add(value))
+            }
+          } else {
+            data[fieldName] = Array.from(new Set(data[fieldName]).add(value))
+          }
+        } else {
+          if (!Array.isArray(data)) {
+            data = [data]
+          }
+          if (value.id) {
+            if (!data.some(element => element.id === value.id) && value.id) {
+              data = Array.from(new Set(data).add(value))
+            }
+          } else {
+            data = Array.from(new Set(data).add(value))
+          }
+        }
+        writeFile(path, data).then(() => {
+          resolve(true)
+        })
+    })
+  })
+}
+function createFolder(path) {
+  return new Promise((resolve) => {
+    if (fs.existsSync(path)) {
+      resolve(false)
+    } else {
+      fs.mkdir(path, (err) => {
+        if (err) {
+          resolve(err)
+        } else {
+          resolve(true)
+        }
+      });
+    }
+  })
+}
+function writeFile(path, value) {
+  return new Promise((resolve) => {
+    fs.writeFile(path, JSON.stringify(value, null, 2), (err) => {
+      if (err) {
+        console.error('Error writing to file:', err);
+      } else {
+        resolve(value)
+        console.log('Data has been written to file');
+      }
+    });
+  })
+}
+function readFile(path) {
+  return new Promise((resolve) => {
+    fs.readFile(path, 'utf8', (err, data) => {
+      if (data) {
+        resolve(JSON.parse(data))
+      }
+      resolve(undefined)
+    })
+  })
+}
+function makeHash(password) {
+  return new Promise((resolve) => {
+    bcrypt.hash(password, saltRounds, (err, hash) => {
+      if (err) {
+        resolve(err)
+        console.error('Error hashing password:', err);
+      } else {
+        resolve(hash)
+        console.log('Hashed password:', hash);
+      }
+    })
+  })
+}
+function makeCompare(password, hashedPassword) {
+  return new Promise((resolve) => {
+    bcrypt.compare(password, hashedPassword, (err, result) => {
+      if (err) {
+        console.error('Error comparing passwords:', err);
+        resolve(false)
+      } else {
+        if (result) {
+          console.log('Login successful');
+          resolve(true)
+        } else {
+          console.log('Invalid credentials');
+          resolve(false)
+        }
+      }
+    });
+  })
+}

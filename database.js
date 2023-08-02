@@ -134,8 +134,8 @@ export const db = {
       })
     },
     signUpUser: (login, password, email) => {
-      return new Promise((resolve) => {
-        fetch(serverPath + 'signUp', {
+      return new Promise(async (resolve) => {
+        const response = await fetch(serverPath + 'signUp', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -146,36 +146,25 @@ export const db = {
             email: email,
             path: dbPath
           }) 
-        }).then(response => {
-            if (!response.ok) {
-              resolve(false)
-              throw new Error('Network response was not ok');
-            }
-            return response.json();
-          }).then(data => {
-            if (data.id) {
-              const newUserPublic = {
-                id: data.id,
-                login: data.login,
-                nickname: data.login,
-                description: data.description
-              }
-  
-              db.push('users.json', newUserPublic)
-              resolve(true)
-            } else {
-              console.log('Sign up error')
-              resolve(false)
-            }
-          }).catch(error => {
-            resolve(false)
-            console.error('Error:', error);
-          });
+        })
+        if (!response.ok) {
+          console.log('Network response was not ok');
+          resolve(false)
+        }
+        const data = await response.json();
+        console.log(data);
+
+        if (data.id) {
+          resolve(true)
+        } else {
+          console.log('Sign up error')
+          resolve(false)
+        }
       })
     },
     signInUser: (login, password) => {
-      return new Promise((resolve) => {
-        fetch(serverPath + 'signIn', {
+      return new Promise(async (resolve) => {
+        const response = await fetch(serverPath + 'signIn', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -185,24 +174,106 @@ export const db = {
             password: password,
             path: dbPath
           }) 
-        }).then(response => {
-            if (!response.ok) {
-              resolve(false)
-              throw new Error('Network response was not ok');
-            }
-            return response.json();
-          }).then(data => {
-            if (data.id) {
-              console.log(data)
-              resolve(true)
-            } else {
-              console.log(data.message)
-              resolve(false)
-            }
-          }).catch(error => {
-            resolve(false)
-            console.error('Error:', error);
-          });
+        })
+        if (!response.ok) {
+          console.log('Network response was not ok');
+          resolve(false);
+        }
+        const data = await response.json();
+
+        if (data.id) {
+          console.log(data)
+          resolve(true)
+        } else {
+          console.log('Sign in error')
+          resolve(false)
+        }
       })
-    },  
+    },
+    createGroupChat: (name, creator, participants) => {
+      return new Promise(async (resolve) => {
+        const data = {
+          name: name,
+          creator: creator,
+          participants: participants
+        }
+
+        const response = await fetch(serverPath + 'createGroupChat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(data, null, 2)
+          }) 
+        })
+        if (!response.ok) {
+          console.log('Network response was not ok');
+          resolve(false);
+        }
+
+        const responsedData = await response.json();
+        console.log(responsedData)
+        resolve(true)
+      })
+    },
+    joinGroupChat: (chatID, userID, followedUserID) => {
+      return new Promise(async (resolve) => {
+        const data = {
+          chatID: chatID,
+          userID: userID,
+          followedUserID: followedUserID
+        }
+
+        const response = await fetch(serverPath + 'joinGroupChat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(data, null, 2)
+          }) 
+        })
+        if (!response.ok) {
+          console.log('Network response was not ok');
+          resolve(false);
+        }
+
+        const responsedData = await response.json();
+        console.log(responsedData)
+        resolve(true)
+      })
+    },
+    sendMessageChat: (userID, chatID, message) => {
+      return new Promise(async (resolve) => {
+        const data = {
+          chatID: chatID,
+          userID: userID,
+          replied: false,
+          mediafiles: [],
+          message: message
+        }
+
+        const response = await fetch(serverPath + 'sendMessageChat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(data, null, 2)
+          }) 
+        })
+        if (!response.ok) {
+          console.log('Network response was not ok');
+          resolve(false);
+        }
+
+        const responsedData = await response.json();
+        console.log(responsedData)
+        resolve(true)
+      })
+
+      // just push in /Chats/chatID.json new message !! crypted message
+
+    },
 }
