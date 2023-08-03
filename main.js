@@ -3,14 +3,9 @@ import { createDomVariables } from './dom.js'
 
 createDomVariables()
 
-let apiData
-db.readFile('users.json').then((data) => {
-  apiData = data
-  console.log(apiData)
-})
-db.getMedia('loaded/a4d42258-96af-4c03-af50-2f44b719621c.jpg').then(blob => {
-  avatarImg.src = URL.createObjectURL(blob);
-})
+let apiData = await db.readFile('users.json')
+console.log(apiData)
+avatarImg.src = URL.createObjectURL(await db.getMedia('loaded/a4d42258-96af-4c03-af50-2f44b719621c.jpg'))
 const userData = {
   id: Math.floor(Math.random() * Math.pow(10, 8)),
   name: 'John Doe',
@@ -18,21 +13,19 @@ const userData = {
   email: 'johndoe@example.com'
 };
 
-sendDataBtn.onclick = () => {
+sendDataBtn.onclick = async () => {
   db.write('users.json', userData)
-  db.readFile('users.json').then((data) => {
-    apiData = data
-    console.log(apiData)
-  })
+  apiData = await db.readFile('users.json')
+  console.log(apiData)
 }
 updateDataBtn.onclick = () => {
-  db.update(`users.json/${apiData[0].id}`, {nickname: 'Droxus'})
+  db.updateField(`users.json`, 'nickname', 'Droxus', 'id', apiData[0].id)
 }
 pushDataBtn.onclick = () => {
   db.push('users.json', userData)
 }
 deleteDataBtn.onclick = () => {
-  db.delete(`users.json/${apiData[0].id}`)
+  db.deleteValue(`users.json`, 'login')
 }
 sendFileBtn.onclick = () => {
   db.sendMedia('loaded', fileInp.files[0])
@@ -66,6 +59,6 @@ joinGroupChatBtn.onclick = () => {
 sendMessageChatBtn.onclick = () => {
   const userID = '594c1ff6-d523-4570-bcbb-7c0f6edd862f'
   const chatID = 'f9e70af7-83f3-4f36-a28a-a5aabfec9335';
-  const message = 'Hello World!'; // it should be object with diff params (msgID, author, replied, timestamp, content, mediafiles(array))
+  const message = 'Hello World!';
   db.sendMessageChat(userID, chatID, message)
 }

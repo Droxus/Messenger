@@ -5,110 +5,10 @@ const multer = require('multer');
 const app = express();
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const cors = require('cors'); // Import the cors package
+const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const crypto = require('crypto');
-
-app.use(cors()); // Enable CORS for all routes
-
-const port = process.env.port ?? 3000;
-
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5500'); // Update with the correct origin where main.js is hosted
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  next();
-});
-
-app.get('/', (req, res) => {
-  const path = req.query.path;
-  fs.readFile(path, 'utf8', (err, data) => {
-    res.json(JSON.parse(data));
-  })
-});
-
-app.post('/', (req, res) => {
-  try {
-    const { data, path } = req.body;
-    const jsonData = data;
-
-    if (path.charAt(path.length-1) == '/') {
-      const id = String(uuidv4());
-      path = path + id  + '.json';
-      data.id = id;
-    }
-
-    fs.writeFile(path, jsonData, (err) => {
-      if (err) {
-        console.error('Error writing to file:', err);
-        res.status(500).json({ error: 'Failed to write to users.json' });
-      } else {
-        console.log('Data has been written to file');
-        res.json({ message: 'Data has been written to users.json' });
-      }
-    });
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.put('/:id', (req, res) => {
-  const userId = parseInt(req.params.id);
-  const { data, path } = req.body
-
-  fs.readFile(path, 'utf8', (err, dataFile) => {
-    let users = JSON.parse(dataFile)
-    const userIndex = users.findIndex(user => user.id === userId);
-
-    if (userIndex === -1) {
-      return res.status(404).json({ message: `User with ID ${userId} not found` });
-    }
-    Object.entries(data).forEach(([key, value]) => {
-      users[userIndex][key] = value;
-    });
-    let jsonData = JSON.stringify(users, null, 2);
-    fs.writeFile(path, jsonData, (err) => {
-      if (err) {
-        console.error('Error writing to file:', err);
-        res.status(500).json({ error: 'Failed to write to users.json' });
-      } else {
-        console.log('User updated successfully');
-        res.json({ message: 'User updated successfully' });
-      }
-    });
-  })
-});
-function updateField(path, fieldName, value) {
-
-}
-
-app.delete('/', (req, res) => {
-  const pathQuery = req.query.path;
-  const userId = pathQuery.slice(pathQuery.lastIndexOf('/')+1, pathQuery.length)
-  const path = pathQuery.slice(0, pathQuery.lastIndexOf('/'))
-
-  fs.readFile(path, 'utf8', (err, data) => {
-    let users = JSON.parse(data)
-    users = users.filter(user => user.id !== Number(userId));
-    let jsonData = JSON.stringify(users, null, 2);
-    
-    fs.writeFile(path, jsonData, (err) => {
-      if (err) {
-        console.error('Error writing to file:', err);
-        res.status(500).json({ error: 'Failed to write to users.json' });
-      } else {
-        console.log('User deleted successfully');
-        res.json({ message: 'User deleted successfully' });
-      }
-    });
-  })
-});
-
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, '../MessengerDB/');
@@ -120,45 +20,71 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-app.post('/upload', upload.single('file'), (req, res) => {
+const port = process.env.port ?? 3000;
+
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5500'); // Update with the correct origin where main.js is hosted
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+});
+
+app.get('/readFile', async (req, res) => {
+  const path = req.query.path;
+  const response = await readFile(path)
+  return res.json(response);
+});
+app.post('/write', async (req, res) => {
+  const { data, path } = req.body;
+  const jsonData = JSON.parse(data);
+  const response = await writeFile(path, jsonData)
+  return res.json(response);
+});
+app.post('/push', async (req, res) => {
+  const { path, data, fieldName } = req.body
+  const jsonData = JSON.parse(data);
+  const response = await pushValueIntoField(path, fieldName, jsonData)
+  return res.send(response)
+});
+app.put('/updateField', async (req, res) => {
+  const { path, fieldName, newValue, elementFieldID, elementValueID } = req.body
+  const response = await updateField(path, fieldName, newValue, elementFieldID, elementValueID)
+  return res.json(response);
+});
+app.put('/deleteValue', async (req, res) => {
+  const { path, fieldName, elementFieldID, elementValueID } = req.body
+  const response = await deleteValue(path, fieldName, elementFieldID, elementValueID)
+  return res.json(response)
+});
+app.post('/sendMedia', upload.single('file'), (req, res) => {
   const file = req.file;
   const pathParam =  req.query.path;
   const uniqueFilename = uuidv4() + path.extname(file.originalname);
   const newPath = pathParam + uniqueFilename
-
-  fs.renameSync(file.path, newPath);
-  if (req.file) {
-    res.send('File uploaded successfully');
-  } else {
-    res.status(400).send('No file uploaded');
-  }
+  return sendMedia(file.path, newPath)
 });
-
-app.get('/file/:filename', (req, res) => {
+app.get('/getMedia/:filename', async (req, res) => {
   const filename = req.params.filename;
   const reqPath = req.query.path
   const filePath = path.join(__dirname, reqPath, filename);
 
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.sendStatus(404);
-  }
+  const mediafile = await getMedia(filePath)
+  return res.sendFile(mediafile);
 });
-
 app.get('/createFolder', (req, res) => {
   const path = req.query.path;
   createFolder(path)
 });
-
 app.post('/signUp', async (req, res) => {
     const { login, password, email } = req.body
     const id = String(uuidv4())
     console.log(login, password, email, id)
-
     allUsers = await readFile(dbPath + 'users.json')
     if (allUsers.find(element => element.login == login)) return res.json({ error: 'User with this login is already registered' });
-
     hashedPassword = await makeHash(password)
     const newUserPublic = {
       id: id,
@@ -170,7 +96,6 @@ app.post('/signUp', async (req, res) => {
     newUser.email = email
     newUser.password = hashedPassword
     console.log(newUser)
-    
     await createFolder(dbPath + 'users')
     await createFolder(dbPath + 'users/' + id)
     await writeFile(dbPath + `users/${id}/user.json`, newUser)
@@ -178,23 +103,17 @@ app.post('/signUp', async (req, res) => {
     await pushValueIntoField(dbPath + 'users.json', false, newUserPublic)
     return res.json(newUser);
 });
-
 app.post('/signIn', async (req, res) => {
     const { login, password } = req.body
     console.log(login, password)
-
     allUsers = await readFile(dbPath + 'users.json')
     let currentUser = allUsers.find(element => element.login == login)
-
     if (currentUser) {
       let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
       makeCompare(password, userData.password)
       return res.json(userData);
-    } else {
-      return res.json({ message: 'Wrong login' });
-    }
+    } else return res.json({ message: 'Wrong login' });
 });
-
 app.post('/createGroupChat', async (req, res) => {
     let { data } = req.body;
     const chatID = String(uuidv4());
@@ -208,13 +127,9 @@ app.post('/createGroupChat', async (req, res) => {
 
     await createFolder(dbPath + 'chats')
     await writeFile(`${dbPath}chats/${chatID}.json`, jsonData)
-
-    jsonData.participants.forEach(async (participant) => {
-      await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, chatID)
-    })
+    jsonData.participants.forEach(async (participant) => await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, chatID))
     return res.json(jsonData);
 });
-
 app.post('/joinGroupChat', async (req, res) => {
   let { data } = req.body;
   const jsonData = JSON.parse(data)
@@ -227,7 +142,6 @@ app.post('/joinGroupChat', async (req, res) => {
   const thisChat = await readFile(`${dbPath}chats/${jsonData.chatID}.json`)
   return res.json(thisChat)
 });
-
 app.post('/sendMessageChat', async (req, res) => {
   let { data } = req.body;
   const jsonData = JSON.parse(data);
@@ -247,7 +161,6 @@ app.post('/sendMessageChat', async (req, res) => {
     content: encryptedMsg,
     mediafiles: jsonData.mediafiles
   }
-
   await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'messages', message)
   return res.json(message)
 });
@@ -288,71 +201,72 @@ function decrypt(encryptedData, key, iv) {
 // console.log('Decrypted Data:', decrypted);
 
 function pushValueIntoField(path, fieldName, value) {
-  return new Promise((resolve) => {
-    readFile(path).then((data) => {
-        console.log(data)
-        if (fieldName) {
-          if (!Array.isArray(data[fieldName])) {
-            data[fieldName] = [data[fieldName]]
-          }
-          if (value.id) {
-            if (!data[fieldName].some(element => element.id === value.id) && value.id) {
-              data[fieldName] = Array.from(new Set(data[fieldName]).add(value))
-            }
-          } else {
-            data[fieldName] = Array.from(new Set(data[fieldName]).add(value))
-          }
-        } else {
-          if (!Array.isArray(data)) {
-            data = [data]
-          }
-          if (value.id) {
-            if (!data.some(element => element.id === value.id) && value.id) {
-              data = Array.from(new Set(data).add(value))
-            }
-          } else {
-            data = Array.from(new Set(data).add(value))
-          }
-        }
-        writeFile(path, data).then(() => {
-          resolve(true)
-        })
-    })
+  return new Promise(async (resolve) => {
+    let data = await readFile(path)
+    console.log(data)
+    let thisData = fieldName ? data[fieldName] : data
+    if (!Array.isArray(thisData)) thisData = [thisData]
+    if (value.id) {
+      if (!thisData.some(element => element.id === value.id) && value.id) thisData = Array.from(new Set(thisData).add(value))
+    } else thisData = Array.from(new Set(thisData).add(value))
+    fieldName ? data[fieldName] = thisData : data = thisData
+    const response = await writeFile(path, data)
+    resolve(response)
+  })
+}
+function updateField(path, fieldName, newValue, elementFieldID, elementValueID) {
+  return new Promise(async (resolve) => {
+    let data = await readFile(dbPath + path)
+    if (elementFieldID && elementValueID) {
+      const elementIndex = data.findIndex(user => user[elementFieldID] === elementValueID);
+      if (elementIndex === -1) return resolve({ message: `Field with ${elementValueID} not found` });
+      data[elementIndex][fieldName] = newValue
+    } else data[fieldName] = newValue
+    const response = await writeFile(dbPath + path, data)
+    resolve(response)
+  })
+}
+function deleteValue(path, fieldName, elementFieldID, elementValueID) {
+  return new Promise(async (resolve) => {
+    let data = await readFile(dbPath + path)
+    if (elementFieldID && elementValueID) {
+      const elementIndex = data.findIndex(user => user[elementFieldID] === elementValueID);
+      if (elementIndex === -1) return resolve({ message: `Field with ${elementValueID} not found` });
+      fieldName ? delete data[elementIndex][fieldName] : data.splice(elementIndex, 1)
+    } else delete data[fieldName]
+    const response = await writeFile(dbPath + path, data)
+    resolve(response)
   })
 }
 function createFolder(path) {
   return new Promise((resolve) => {
-    if (fs.existsSync(path)) {
+    if (!fs.existsSync(path)) {
       resolve(false)
-    } else {
       fs.mkdir(path, (err) => {
-        if (err) {
-          resolve(err)
-        } else {
-          resolve(true)
-        }
+        if (err) return resolve(err)
       });
     }
+    resolve(true)
   })
 }
 function writeFile(path, value) {
   return new Promise((resolve) => {
+    if (path.charAt(path.length-1) == '/') {
+      const id = String(uuidv4());
+      path = path + id  + '.json';
+      value.id = id;
+    }
     fs.writeFile(path, JSON.stringify(value, null, 2), (err) => {
-      if (err) {
-        console.error('Error writing to file:', err);
-      } else {
-        resolve(value)
+      if (err) console.error('Error writing to file:', err);
         console.log('Data has been written to file');
-      }
+      resolve(value)
     });
   })
 }
 function readFile(path) {
   return new Promise((resolve) => {
     fs.readFile(path, 'utf8', (err, data) => {
-      if (data) {
-        resolve(JSON.parse(data))
-      }
+      if (data) resolve(JSON.parse(data))
       resolve(undefined)
     })
   })
@@ -360,13 +274,9 @@ function readFile(path) {
 function makeHash(password) {
   return new Promise((resolve) => {
     bcrypt.hash(password, saltRounds, (err, hash) => {
-      if (err) {
-        resolve(err)
-        console.error('Error hashing password:', err);
-      } else {
-        resolve(hash)
+      if (err) return console.error('Error hashing password:', err);
         console.log('Hashed password:', hash);
-      }
+      resolve(hash)
     })
   })
 }
@@ -388,3 +298,23 @@ function makeCompare(password, hashedPassword) {
     });
   })
 }
+function getMedia(filePath) {
+  return new Promise((resolve) => {
+    if (fs.existsSync(filePath)) {
+      resolve(filePath)
+    } else {
+      resolve(false)
+    }
+  })
+}
+function sendMedia(filePath, newPath) {
+  return new Promise((resolve) => {
+    fs.renameSync(filePath, newPath);
+    if (req.file) {
+      resolve('File uploaded successfully');
+    } else {
+      console.error('No file uploaded');
+    }
+  })
+}
+
