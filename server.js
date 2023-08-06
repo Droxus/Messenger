@@ -164,6 +164,17 @@ app.post('/sendMessageChat', async (req, res) => {
   await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'messages', message)
   return res.json(message)
 });
+app.post('/getChatInfo', async (req, res) => {
+  const { path } = req.body;
+  let chatInfo = await readFile(dbPath + path);
+  if (chatInfo) {
+    for (let index = 0; index < chatInfo.messages.length; index++) {
+      const message = chatInfo.messages[index]
+      chatInfo.messages[index].content = await decrypt(message.content.encryptedData, Buffer.from(chatInfo.aesKey, 'hex') , message.content.iv);
+    }
+  }
+  return res.send(chatInfo)
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
@@ -181,7 +192,6 @@ function encrypt(data, key) {
     })
   })
 }
-
 function decrypt(encryptedData, key, iv) {
   return new Promise((resolve) => {
     const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
@@ -190,16 +200,6 @@ function decrypt(encryptedData, key, iv) {
     resolve(decryptedData)
   })
 }
-
-// const aesKey = crypto.randomBytes(32);
-// const originalData = 'Hello, World! Hello, World!';
-
-// const encrypted = encrypt(originalData, aesKey);
-// console.log('Encrypted Data:', encrypted);
-
-// const decrypted = decrypt(encrypted.encryptedData, aesKey, encrypted.iv);
-// console.log('Decrypted Data:', decrypted);
-
 function pushValueIntoField(path, fieldName, value) {
   return new Promise(async (resolve) => {
     let data = await readFile(path)

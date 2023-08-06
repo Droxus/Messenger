@@ -1,16 +1,12 @@
 const serverPath = 'http://localhost:3000/'
 const dbPath = '../MessengerDB/'
-export const db = {
-    readFile: (path) => {
-      return new Promise (async (resolve) => {
+const db = {
+    readFile: async (path) => {
         const response = await fetch(serverPath + 'readFile?path=' + dbPath + path)
-        resolve(response.json())
-        if (response.ok) return console.log('Successfully read');
-          console.error('Failed to read');
-      })
+        if (!response.ok) return console.error('Failed to read');
+        return response.json()
     }, 
-    write: (path, data) => {
-      return new Promise (async (resolve) => {
+    write: async (path, data) => {
         if (!Array.isArray(data)) data = [data];
         const response = await fetch(serverPath + 'write', {
           method: 'POST',
@@ -22,13 +18,10 @@ export const db = {
             path: dbPath + path
           }) 
         })
-        if (response.ok) return console.log('Written successfully');
-          console.error('Failed to write');
-        resolve(response.json())
-      })
+        if (!response.ok) return console.error('Failed to write');
+        return response.json()
     },
-    push: (path, data, fieldName) => {
-      return new Promise (async (resolve) => {
+    push: async (path, data, fieldName) => {
         const response = await fetch(serverPath + 'push', {
           method: 'POST',
           headers: {
@@ -40,13 +33,10 @@ export const db = {
             fieldName: fieldName
           }) 
         })
-        if (response.ok) return console.log('Pushed successfully');
-          console.error('Failed to push');
-        resolve(response)
-      })
+        if (!response.ok) return console.error('Failed to push');
+        return response
     },
-    updateField: (path, fieldName, newValue, elementFieldID, elementValueID) => {
-      return new Promise(async (resolve) => {
+    updateField: async (path, fieldName, newValue, elementFieldID, elementValueID) => {
         const response = await fetch(serverPath + 'updateField', {
           method: 'PUT',
           headers: {
@@ -60,13 +50,10 @@ export const db = {
             elementValueID: elementValueID
           }) 
         })
-        if (response.ok) return console.log('Updated successfully');
-          console.error('Failed to update');
-        resolve(response);
-      })
+        if (!response.ok) return console.error('Failed to update');
+        return response
     },
-    deleteValue: (path, fieldName, elementFieldID, elementValueID) => {
-      return new Promise(async (resolve) => {
+    deleteValue: async (path, fieldName, elementFieldID, elementValueID) => {
         const response = await fetch(serverPath + 'deleteValue', {
           method: 'PUT',
           headers: {
@@ -79,10 +66,8 @@ export const db = {
             elementValueID: elementValueID
           }) 
         })
-        if (response.ok) return console.log('Deleted successfully');
-          console.error('Failed to delete');
-        resolve(response)
-      })
+        if (!response.ok) return console.error('Failed to delete');
+        return response
     },
     sendMedia: (path, file) => {
       const formData = new FormData();
@@ -105,24 +90,19 @@ export const db = {
       xhr.open('POST', `${serverPath}sendMedia?path=${dbPath + path + '/'}`);
       xhr.send(formData);
     },
-    getMedia: (path) => {
-      return new Promise(async (resolve) => {
+    getMedia: async (path) => {
         const fileName = path.slice(path.lastIndexOf('/')+1, path.length)
         const basicPath = path.slice(0, path.lastIndexOf('/'))
         const response = await fetch(serverPath + `getMedia/${fileName}?path=${dbPath + basicPath}`)
-        if (response.ok) resolve(response.blob());
-          resolve(undefined)
-      })
+        if (!response.ok) return console.error('Failed to get media');
+        return response.blob()
     },
-    createFolder: (path) => {
-      return new Promise (async (resolve) => {
+    createFolder: async (path) => {
         const response = await fetch(serverPath + `createFolder?path=${dbPath + path}`)
-        if (response.ok) resolve(response)
-          resolve(undefined)
-      })
+        if (!response.ok) return console.error('Failed to create folder');
+        return response
     },
-    signUpUser: (login, password, email) => {
-      return new Promise(async (resolve) => {
+    signUpUser: async (login, password, email) => {
         const response = await fetch(serverPath + 'signUp', {
           method: 'POST',
           headers: {
@@ -135,15 +115,12 @@ export const db = {
             path: dbPath
           }) 
         })
-        if (!response.ok) console.log('Network response was not ok');
+        if (!response.ok) console.error('Network response was not ok');
         const data = await response.json();
-        console.log(data);
-        if (!data.id) console.log('Sign up error')
-        resolve(response)
-      })
+        if (!data.id) console.error('Sign up error')
+        return response
     },
-    signInUser: (login, password) => {
-      return new Promise(async (resolve) => {
+    signInUser: async (login, password) => {
         const response = await fetch(serverPath + 'signIn', {
           method: 'POST',
           headers: {
@@ -155,15 +132,12 @@ export const db = {
             path: dbPath
           }) 
         })
-        if (!response.ok) console.log('Network response was not ok');
+        if (!response.ok) console.error('Network response was not ok');
         const data = await response.json();
-        console.log(data)
-        if (!data.id) console.log('Sign in error')
-        resolve(response)
-      })
+        if (!data.id) console.error('Sign in error')
+        return response
     },
-    createGroupChat: (name, creator, participants) => {
-      return new Promise(async (resolve) => {
+    createGroupChat: async (name, creator, participants) => {
         const data = {
           name: name,
           creator: creator,
@@ -178,14 +152,11 @@ export const db = {
             data: JSON.stringify(data, null, 2)
           }) 
         })
-        if (!response.ok) console.log('Network response was not ok');
+        if (!response.ok) console.error('Network response was not ok');
         const responsedData = await response.json();
-        console.log(responsedData)
-        resolve(response)
-      })
+        return responsedData
     },
-    joinGroupChat: (chatID, userID, followedUserID) => {
-      return new Promise(async (resolve) => {
+    joinGroupChat: async (chatID, userID, followedUserID) => {
         const data = {
           chatID: chatID,
           userID: userID,
@@ -200,14 +171,11 @@ export const db = {
             data: JSON.stringify(data, null, 2)
           }) 
         })
-        if (!response.ok) console.log('Network response was not ok');
+        if (!response.ok) console.error('Network response was not ok');
         const responsedData = await response.json();
-        console.log(responsedData)
-        resolve(responsedData)
-      })
+        return responsedData
     },
-    sendMessageChat: (userID, chatID, message) => {
-      return new Promise(async (resolve) => {
+    sendMessageChat: async (userID, chatID, message) => {
         const data = {
           chatID: chatID,
           userID: userID,
@@ -224,10 +192,23 @@ export const db = {
             data: JSON.stringify(data, null, 2)
           }) 
         })
-        if (!response.ok) console.log('Network response was not ok');
+        if (!response.ok) console.error('Network response was not ok');
         const responsedData = await response.json();
-        console.log(responsedData)
-        resolve(responsedData)
-      })
+        return responsedData
     },
+    getChatInfo: async (path) => {
+      const response = await fetch(serverPath + 'getChatInfo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          path: path
+        }) 
+      })
+      if (!response.ok) return console.error('Network response was not ok');
+      const responsedData = await response.json();
+      return responsedData
+    }
 }
+export default db
