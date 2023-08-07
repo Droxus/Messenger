@@ -103,6 +103,12 @@ const db = {
         return response
     },
     signUpUser: async (login, password, email) => {
+      const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!regex.test(email)) return { message: 'Please enter a valid email address' }
+      if (login.length < 4) return { message: 'Login length must be more than 4 symbols' }
+      if (login.length > 16) return { message: 'Login length should not exceed 16 symbols' }
+      if (password.length < 8) return { message: 'Password length must be more than 8 symbols' }
+      if (password.length > 20) return { message: 'Password length should not exceed 20 symbols' }
         const response = await fetch(serverPath + 'signUp', {
           method: 'POST',
           headers: {
@@ -118,7 +124,7 @@ const db = {
         if (!response.ok) console.error('Network response was not ok');
         const data = await response.json();
         if (!data.id) console.error('Sign up error')
-        return response
+        return data
     },
     signInUser: async (login, password) => {
         const response = await fetch(serverPath + 'signIn', {
@@ -135,7 +141,54 @@ const db = {
         if (!response.ok) console.error('Network response was not ok');
         const data = await response.json();
         if (!data.id) console.error('Sign in error')
-        return response
+        return data
+    },
+    sendVerifyEmailMsg: async (email, login) => {
+      const response = await fetch(serverPath + 'sendVerifyEmailMsg', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          login: login,
+          email, email
+        }) 
+      })
+      if (!response.ok) console.error('Network response was not ok');
+      const data = await response.json();
+      if (!data.code) return { message: 'Wrong Login' }
+      return data.code
+    },
+    resetPassword: async (login, password) => {
+      if (password.length < 8) return { message: 'Password length must be more than 8 symbols' }
+      if (password.length > 20) return { message: 'Password length should not exceed 20 symbols' }
+      const response = await fetch(serverPath + 'resetPassword', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          login: login,
+          password: password,
+        }) 
+      })
+      if (!response.ok) console.error('Network response was not ok');
+      const data = await response.json();
+      return data
+    },
+    emailVerified: async (login) => {
+      const response = await fetch(serverPath + 'emailVerified', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          login: login
+        }) 
+      })
+      if (!response.ok) console.error('Network response was not ok');
+      const data = await response.json();
+      return data
     },
     createGroupChat: async (name, creator, participants) => {
         const data = {

@@ -9,6 +9,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, '../MessengerDB/');
@@ -32,7 +33,38 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   next();
 });
-
+const userRequestHistory = {};
+const requestHistory = {};
+app.use('/signIn', async (req, res, next) => {
+  const { login } = req.body;
+  if (!userRequestHistory[login]) userRequestHistory[login] = [];
+  const currentTime = new Date().getTime();
+  const fiveMinutesAgo = currentTime - 5 * 60 * 1000;
+  userRequestHistory[login] = userRequestHistory[login].filter((timestamp) => timestamp > fiveMinutesAgo);
+  if (userRequestHistory[login].length >= 5) return res.status(429).json({ message: 'Rate limit exceeded' });
+  userRequestHistory[login].push(currentTime);
+  next();
+});
+app.use('/sendVerifyEmailMsg', async (req, res, next) => {
+  const { login } = req.body;
+  if (!userRequestHistory[login]) userRequestHistory[login] = [];
+  const currentTime = new Date().getTime();
+  const fiveMinutesAgo = currentTime - 5 * 60 * 1000;
+  userRequestHistory[login] = userRequestHistory[login].filter((timestamp) => timestamp > fiveMinutesAgo);
+  if (userRequestHistory[login].length >= 5) return res.status(429).json({ message: 'Rate limit exceeded' });
+  userRequestHistory[login].push(currentTime);
+  next();
+});
+app.use((req, res, next) => {
+  const userIP = req.ip;
+  if (!requestHistory[userIP]) requestHistory[userIP] = [];
+  const currentTime = new Date().getTime();
+  const fiveMinutesAgo = currentTime - 1 * 60 * 1000;
+  requestHistory[userIP] = requestHistory[userIP].filter((timestamp) => timestamp > fiveMinutesAgo);
+  if (requestHistory[userIP].length >= 100) return res.status(429).json({ message: 'Rate limit exceeded' });
+  requestHistory[userIP].push(currentTime);
+  next();
+});
 app.get('/readFile', async (req, res) => {
   const path = req.query.path;
   const response = await readFile(path)
@@ -84,7 +116,7 @@ app.post('/signUp', async (req, res) => {
     const id = String(uuidv4())
     console.log(login, password, email, id)
     allUsers = await readFile(dbPath + 'users.json')
-    if (allUsers.find(element => element.login == login)) return res.json({ error: 'User with this login is already registered' });
+    if (allUsers.find(element => element.login == login)) return res.json({ message: 'User with this login is already registered' });
     hashedPassword = await makeHash(password)
     const newUserPublic = {
       id: id,
@@ -101,18 +133,74 @@ app.post('/signUp', async (req, res) => {
     await writeFile(dbPath + `users/${id}/user.json`, newUser)
     await writeFile(`${dbPath}users/${id}/chats.json`, [])
     await pushValueIntoField(dbPath + 'users.json', false, newUserPublic)
-    return res.json(newUser);
+    if (newUser.id) return res.json(newUser);
+    return res.json({ message: 'Failed to create new User' });
 });
 app.post('/signIn', async (req, res) => {
     const { login, password } = req.body
-    console.log(login, password)
     allUsers = await readFile(dbPath + 'users.json')
     let currentUser = allUsers.find(element => element.login == login)
     if (currentUser) {
       let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
-      makeCompare(password, userData.password)
-      return res.json(userData);
+      const response = await makeCompare(password, userData.password)
+      if (response.message) return res.json(response);
+      return res.json(userData)
     } else return res.json({ message: 'Wrong login' });
+});
+app.post('/sendVerifyEmailMsg', async (req, res) => {
+  const { login, email } = req.body
+  let currentUser
+  if (login) {
+    allUsers = await readFile(dbPath + 'users.json')
+    currentUser = allUsers.find(element => element.login == login)
+  }
+  if (currentUser || email) {
+    let userData
+    if (login) userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    const userEmail = login ? userData.email : email;
+    let transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+          user: 'yellowdarkwent@gmail.com',
+          pass: 'sbyruhhvunzezchi',
+      },
+    });
+    const code = Number(String(Math.pow(10, 4) * Math.random()).replace('.', 0).slice(0, 4))
+    const mailOptions = {
+      from: 'Your Favourite Messanger',
+      to: userEmail,
+      subject: 'Your Favourite Messanger',
+      text: 'This is the body of the email.',
+      html: `<p>This is your code <strong>${code}</strong></p>`
+    };
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) return res.json({ message: err })
+      return res.json({ code: code })
+    });
+  } else return res.json({ message: 'Wrong login' });
+});
+app.post('/resetPassword', async (req, res) => {
+  const { login, password } = req.body
+  allUsers = await readFile(dbPath + 'users.json')
+  let currentUser = allUsers.find(element => element.login == login)
+  if (currentUser) {
+    let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    const hashedPassword = await makeHash(password)
+    userData.password = hashedPassword
+    const response = await writeFile(dbPath + `users/${currentUser.id}/user.json`, userData)
+    return res.json(response);
+  } else return res.json({ message: 'Wrong login' });
+});
+app.post('/emailVerified', async (req, res) => {
+  const { login } = req.body
+  allUsers = await readFile(dbPath + 'users.json')
+  let currentUser = allUsers.find(element => element.login == login)
+  if (currentUser) {
+    let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    userData.emailVerified = true
+    const response = await writeFile(dbPath + `users/${currentUser.id}/user.json`, userData)
+    return res.json(response);
+  } else return res.json({ message: 'Wrong login' });
 });
 app.post('/createGroupChat', async (req, res) => {
     let { data } = req.body;
@@ -292,7 +380,7 @@ function makeCompare(password, hashedPassword) {
           resolve(true)
         } else {
           console.log('Invalid credentials');
-          resolve(false)
+          resolve({message: 'Wrong password'})
         }
       }
     });

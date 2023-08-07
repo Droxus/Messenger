@@ -5,18 +5,21 @@ window.html = (result) => result[0]
 window.applyStyles = (element, styles) => {
     const descendants = dom.getAllDescendants(element.parentElement)
     const selectors = dom.getDescendantsSelectors(descendants)
-    console.log(selectors)
     selectors.uniqueTags.forEach((element) => {
         if (styles.tag[element]) {
             for (const [key, value] of Object.entries(styles.tag[element])) {
-                document.querySelector(element).style.setProperty(key, value)
+                document.querySelectorAll(element).forEach((e) => {
+                  e.style.setProperty(key, value)  
+                })
             }
         }
     })
     selectors.uniqueClasses.forEach((element) => {
         if (styles.class[element]) {
             for (const [key, value] of Object.entries(styles.class[element])) {
-                document.querySelector('.' + element).style.setProperty(key, value)
+                document.querySelectorAll('.' + element).forEach((e) => {
+                    e.style.setProperty(key, value)  
+                })
             }
         }
     })
@@ -28,9 +31,12 @@ window.applyStyles = (element, styles) => {
         }
     })
 }
-window.insetElement = (parentElement, element, styles) => {
+window.insertElement = (parentElement, element, styles) => {
     parentElement.insertAdjacentHTML('beforeend', element)
     const createdElement = parentElement.children[parentElement.children.length-1]
     applyStyles(createdElement, styles)
     dom.createDomVariables()
 }
+window.addEventListener("selectstart", function(event) {
+    event.preventDefault();
+});
