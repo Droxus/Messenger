@@ -1,4 +1,5 @@
 import App from '../App.js'
+import Home from './Home.js'
 
 const Auth = {
     start: async () => {
@@ -88,6 +89,7 @@ const Auth = {
         localStorage.setItem('localUsers', JSON.stringify(localUsersData))
         localUsersData = JSON.parse(localStorage.getItem('localUsers'))
         console.log(localUsersData)
+        Home.start()
     }
 }
 export default Auth

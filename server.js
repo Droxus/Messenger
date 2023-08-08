@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, '../MessengerDB/');
+    cb(null, dbPath);
   },
   filename: function (req, file, cb) {
     console.log(file)
@@ -46,13 +46,14 @@ app.use('/signIn', async (req, res, next) => {
   next();
 });
 app.use('/sendVerifyEmailMsg', async (req, res, next) => {
-  const { login } = req.body;
-  if (!userRequestHistory[login]) userRequestHistory[login] = [];
+  const { login, email } = req.body;
+  const data = login ? login : email;
+  if (!userRequestHistory[data]) userRequestHistory[data] = [];
   const currentTime = new Date().getTime();
   const fiveMinutesAgo = currentTime - 5 * 60 * 1000;
-  userRequestHistory[login] = userRequestHistory[login].filter((timestamp) => timestamp > fiveMinutesAgo);
-  if (userRequestHistory[login].length >= 5) return res.status(429).json({ message: 'Rate limit exceeded' });
-  userRequestHistory[login].push(currentTime);
+  userRequestHistory[data] = userRequestHistory[data].filter((timestamp) => timestamp > fiveMinutesAgo);
+  if (userRequestHistory[data].length >= 5) return res.status(429).json({ message: 'Rate limit exceeded' });
+  userRequestHistory[data].push(currentTime);
   next();
 });
 app.use((req, res, next) => {
