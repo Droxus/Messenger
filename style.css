@@ -11,16 +11,18 @@ body * {
     font-family: Arial, Helvetica, sans-serif;
     transition: .3s;
     border-radius: 10px;
+    transition: 'display 0.5s';
 }
 div {
     border-radius: 0px;
 }
-#App {
+#appDiv {
     width: 100vw;
     height: 100vh;
     padding: 0;
     margin: 0;
     box-sizing: content-box;
+    background: #000;
 } 
 #home {
     width: 100vw;
@@ -40,4 +42,24 @@ label{
     overflow: hidden;
     display: inline-block;
     white-space: nowrap;
+    border-radius: 0;
 }
+img {
+    border-radius: 0;
+}
+::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 5px transparent;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgb(255, 255, 255, 0.1);
+    border-radius: 1px;
+  }
+  ::-webkit-scrollbar-corner{
+    display: none;
+  }

@@ -7,15 +7,16 @@ export const App = {
         createDomVariables()
         Auth.start()
     },
-    clear: () => {
-        const children = appDiv.children;
+    clear: (element) => {
+        const children = element.children;
         for (const child of children) {
-            appDiv.removeChild(child);
+            element.removeChild(child);
         }
     },
     db: db,
+    thisUser: undefined,
     styles: {
         darkBg: 'black'
-    }
+    },
 }
 export default App

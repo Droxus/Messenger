@@ -13,12 +13,13 @@ const Auth = {
         Auth.successfulAuth(currentUser)
     },
     signIn: () => {
-        App.clear()
+        App.clear(appDiv)
         insertElement(appDiv, templates.signIn, styles)
         helpBtn[0].onclick = () => {
             if (loginInp.value.length > 4) return Auth.passwordResetting(loginInp.value)
             else Auth.errorOutput('Wrong Login')
         }
+        input.forEach(inp => inp.oninput = () => errorOutputLbl[0].style.color = '#000000')
         signUpBtn.onclick = Auth.signUp
         signInBtn.onclick = async () => {
             const login = loginInp.value;
@@ -29,8 +30,9 @@ const Auth = {
         }
     },
     signUp: () => {
-        App.clear()
+        App.clear(appDiv)
         insertElement(appDiv, templates.signUp, styles)
+        input.forEach(inp => inp.oninput = () => errorOutputLbl[0].style.color = '#000000')
         signInBtn.onclick = Auth.signIn
         signUpBtn.onclick = async () => {
             const login = String(loginInp.value);
@@ -46,11 +48,13 @@ const Auth = {
     },
     errorOutput: (msg) => {
         errorOutputLbl[0].innerText = msg
+        errorOutputLbl[0].style.color = '#FF6969'
     },
     emailVerifying: async (data) => {
-        App.clear()
+        App.clear(appDiv)
         insertElement(appDiv, templates.emailVerifying, styles)
         getVerifyingMsgBtn.onclick = async () => generatedCode = await App.db.sendVerifyEmailMsg(data.email)
+        input.forEach(inp => inp.oninput = () => errorOutputLbl[0].style.color = '#000000')
         skipBtn.onclick = Auth.successfulAuth(data)
         let generatedCode = await App.db.sendVerifyEmailMsg(data.email)
         aproveBtn.onclick = async () => {
@@ -62,9 +66,10 @@ const Auth = {
         }
     },
     passwordResetting: async (login) => {
-        App.clear()
+        App.clear(appDiv)
         insertElement(appDiv, templates.resettingPassword, styles)
         getVerifyingMsgBtn.onclick = async () => generatedCode = await App.db.sendVerifyEmailMsg(undefined, login)
+        input.forEach(inp => inp.oninput = () => errorOutputLbl[0].style.color = '#000000')
         cancelBtn.onclick = Auth.signIn
         let generatedCode = await App.db.sendVerifyEmailMsg(undefined, login)
         aproveBtn.onclick = async () => {
@@ -77,7 +82,7 @@ const Auth = {
         }
     },
     successfulAuth: (userData) => {
-        App.clear()
+        App.clear(appDiv)
         console.log('Successful Auth')
         let localUsersData = JSON.parse(localStorage.getItem('localUsers'))
         if (Array.isArray(localUsersData)) {
@@ -88,6 +93,7 @@ const Auth = {
         } else localUsersData = [userData]
         localStorage.setItem('localUsers', JSON.stringify(localUsersData))
         localUsersData = JSON.parse(localStorage.getItem('localUsers'))
+        App.thisUser = localUsersData[0]
         console.log(localUsersData)
         Home.start()
     }
@@ -201,10 +207,11 @@ const styles = {
             'font-size': '32px'
         },
         errorOutputLbl: {
-            color: '#FF6969',
+            color: '#000000',
             width: '95%',
             height: '20px', 
-            'text-align': 'center'
+            'text-align': 'center',
+            transition: '.5s'
         },
         helpBtn: {
             background: '#333333',
