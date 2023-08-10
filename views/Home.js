@@ -1,4 +1,5 @@
 import App from '../App.js'
+import Chat from './Chat.js'
 
 const Home = {
     start: () => {
@@ -16,7 +17,7 @@ const Home = {
             event.target.style.color = 'white'
             footerBtn.innerText = event.target.innerText
         };
-        chatsArticleBtn.click()
+        groupsArticleBtn.click()
     },
     contactsPage: () => {
 
@@ -37,8 +38,23 @@ const Home = {
             chatTimeMsg[chatLastMsg.length-1].innerText = `${hours}:${minutes}`
         }
     },
-    groupsPage: () => {
-
+    groupsPage: async () => {
+        insertElement(contentArticle, templates.groupsPage, styles)
+        const userGroups = await App.db.readFile(`users/${App.thisUser.id}/groups.json`)
+        for (const groupID of userGroups) {
+            const group = await App.db.getChatInfo(`groups/${groupID}.json`)
+            console.log(group)
+            insertElement(groupsPage, templates.groupBlocks, styles)
+            const creationTime = group.messages[group.messages.length-1].creationTime
+            const hours = new Date(creationTime).getHours();
+            const minutes = new Date(creationTime).getMinutes()
+            groupBlocks[groupBlocks.length-1].id = group.id
+            groupNames[groupNames.length-1].innerText = group.name
+            groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
+            groupTimeMsg[groupLastMsg.length-1].innerText = `${hours}:${minutes}`
+            participantsNum[participantsNum.length-1].innerText = group.participants.length
+            groupBlocks[groupBlocks.length-1].onclick = () => {if (group) Chat.groupChat(group)}
+        }
     },
     publicsPage: () => {
 
@@ -75,6 +91,11 @@ const templates = {
 
         </div>
     `,
+    groupsPage: html`
+        <div id="groupsPage">
+
+        </div>
+    `,
     chatBlocks: html`
         <button class="chatBlocks">
             <div class="chatBlocksHead">
@@ -96,6 +117,34 @@ const templates = {
                     </div>
                 </div>
                 <label class="isOnline">online</label>
+            </div>
+        </button>
+    `,
+    groupBlocks: html`
+        <button class="groupBlocks">
+            <div class="groupBlocksHead">
+                <div class="groupLblsBlocks">
+                    <label class="groupNames">group Name</label>
+                    <label class="groupLastMsg">Text Message</label>
+                </div>
+                <img class="groupIcons" src="../img/avaPlaceholder.svg">
+            </div>
+            <div class="groupBlocksFooter">
+                <div class="groupBlocksFooterInfo">
+                    <div>
+                        <label class="groupTimeMsg">Time</label>
+                        <img src="../img/clockIcon.svg">
+                    </div>
+                    <div>
+                        <label class="groupNumberOfUnreadMsg">0</label>
+                        <img src="../img/msgIcon.svg">
+                    </div>
+
+                </div>
+                <div>
+                    <label class="participantsNum">0</label>
+                    <img src="../img/participantsIcon.svg">
+                </div>
             </div>
         </button>
     `,
@@ -171,7 +220,18 @@ const styles = {
             'padding-top': '15px',
             'overflow-y': 'scroll',
             margin: '10px auto'
-        }
+        },
+        groupsPage: {
+            width: '90%',
+            height: 'calc(100% - 40px)',
+            display: 'grid',
+            'justify-items': 'center',
+            'grid-auto-rows': '90px',
+            'align-items': 'center',
+            'padding-top': '15px',
+            'overflow-y': 'scroll',
+            margin: '10px auto'
+        },
     },
     class: {
         navHomePageBtns: {
@@ -236,9 +296,72 @@ const styles = {
         chatBlocksFooterInfo: {
             display: 'flex',
         },
+        groupBlocks: {
+            background: '#333333',
+            color: '#C0C0C0',
+            width: '100%',
+            height: '75px',
+            display: 'grid',
+            'grid-template-rows': 'calc(100% - 20px) 20px',
+        },
+        groupBlocksHead: {
+            width: '100%',
+            height: '100%',
+            display: 'grid',
+            'grid-template-columns': 'calc(100% - 70px) 70px',
+        },
+        groupLblsBlocks: {
+            display: 'grid',
+            'grid-template-rows': '1fr 1fr',
+        },
+        groupNames: {
+            'align-self': 'end',
+            'justify-self': 'left',
+            'margin-left': '15px',
+            'font-size': '16px',
+            'text-align': 'left',
+            color: '#FFA8A8',
+            width: '100%',
+        },
+        groupLastMsg: {
+            'align-self': 'center',
+            'justify-self': 'left',
+            'margin-left': '15px',
+            'font-size': '12px',
+            'text-align': 'left',
+            color: '#C0C0C0',
+            width: '100%',
+        },
+        groupIcons: {
+            'border-radius':' 50%',
+            width: '42px',
+            'place-self': 'center',
+        },
+        groupTimeMsg: {
+            color: '#FFE7A8',
+            margin: '0% 5px 0 15px',
+            'font-size': '12px',
+        },
+        groupNumberOfUnreadMsg: {
+            color: '#FFE7A8',
+            margin: '0% 5px 0 30px',
+            'font-size': '12px',
+        },
+        groupBlocksFooter: {
+            display: 'grid',
+            'grid-template-columns': 'calc(100% - 70px) 70px',
+        },
+        groupBlocksFooterInfo: {
+            display: 'flex',
+        },
         isOnline: {
             color: '#AFFFA8',
-        }
+        },
+        participantsNum: {
+            color: '#FFE7A8',
+            margin: '0 5px 0 0',
+            'font-size': '12px',
+        },
     },
     tag: {
         header: {

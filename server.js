@@ -116,7 +116,7 @@ app.post('/signUp', async (req, res) => {
     const { login, password, email } = req.body
     const id = String(uuidv4())
     console.log(login, password, email, id)
-    allUsers = await readFile(dbPath + 'users.json')
+    allUsers = await readFile('users.json')
     if (allUsers.find(element => element.login == login)) return res.json({ message: 'User with this login is already registered' });
     hashedPassword = await makeHash(password)
     const newUserPublic = {
@@ -129,20 +129,21 @@ app.post('/signUp', async (req, res) => {
     newUser.email = email
     newUser.password = hashedPassword
     console.log(newUser)
-    await createFolder(dbPath + 'users')
-    await createFolder(dbPath + 'users/' + id)
-    await writeFile(dbPath + `users/${id}/user.json`, newUser)
-    await writeFile(`${dbPath}users/${id}/chats.json`, [])
-    await pushValueIntoField(dbPath + 'users.json', false, newUserPublic)
+    await createFolder('users')
+    await createFolder('users/' + id)
+    await writeFile(`users/${id}/user.json`, newUser)
+    await writeFile(`users/${id}/chats.json`, [])
+    await writeFile(`users/${id}/groups.json`, [])
+    await pushValueIntoField('users.json', false, newUserPublic)
     if (newUser.id) return res.json(newUser);
     return res.json({ message: 'Failed to create new User' });
 });
 app.post('/signIn', async (req, res) => {
     const { login, password } = req.body
-    allUsers = await readFile(dbPath + 'users.json')
+    allUsers = await readFile('users.json')
     let currentUser = allUsers.find(element => element.login == login)
     if (currentUser) {
-      let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+      let userData = await readFile(`users/${currentUser.id}/user.json`)
       const response = await makeCompare(password, userData.password)
       if (response.message) return res.json(response);
       return res.json(userData)
@@ -152,12 +153,12 @@ app.post('/sendVerifyEmailMsg', async (req, res) => {
   const { login, email } = req.body
   let currentUser
   if (login) {
-    allUsers = await readFile(dbPath + 'users.json')
+    allUsers = await readFile('users.json')
     currentUser = allUsers.find(element => element.login == login)
   }
   if (currentUser || email) {
     let userData
-    if (login) userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    if (login) userData = await readFile(`users/${currentUser.id}/user.json`)
     const userEmail = login ? userData.email : email;
     let transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -182,24 +183,24 @@ app.post('/sendVerifyEmailMsg', async (req, res) => {
 });
 app.post('/resetPassword', async (req, res) => {
   const { login, password } = req.body
-  allUsers = await readFile(dbPath + 'users.json')
+  allUsers = await readFile('users.json')
   let currentUser = allUsers.find(element => element.login == login)
   if (currentUser) {
-    let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    let userData = await readFile(`users/${currentUser.id}/user.json`)
     const hashedPassword = await makeHash(password)
     userData.password = hashedPassword
-    const response = await writeFile(dbPath + `users/${currentUser.id}/user.json`, userData)
+    const response = await writeFile(`users/${currentUser.id}/user.json`, userData)
     return res.json(response);
   } else return res.json({ message: 'Wrong login' });
 });
 app.post('/emailVerified', async (req, res) => {
   const { login } = req.body
-  allUsers = await readFile(dbPath + 'users.json')
+  allUsers = await readFile('users.json')
   let currentUser = allUsers.find(element => element.login == login)
   if (currentUser) {
-    let userData = await readFile(dbPath + `users/${currentUser.id}/user.json`)
+    let userData = await readFile(`users/${currentUser.id}/user.json`)
     userData.emailVerified = true
-    const response = await writeFile(dbPath + `users/${currentUser.id}/user.json`, userData)
+    const response = await writeFile(`users/${currentUser.id}/user.json`, userData)
     return res.json(response);
   } else return res.json({ message: 'Wrong login' });
 });
@@ -214,9 +215,9 @@ app.post('/createGroupChat', async (req, res) => {
     jsonData.messages = []
     jsonData.aesKey = crypto.randomBytes(32).toString('hex');
 
-    await createFolder(dbPath + 'chats')
-    await writeFile(`${dbPath}chats/${chatID}.json`, jsonData)
-    jsonData.participants.forEach(async (participant) => await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, chatID))
+    await createFolder('groups')
+    await writeFile(`groups/${chatID}.json`, jsonData)
+    jsonData.participants.forEach(async (participant) => await pushValueIntoField(`users/${participant.id}/group.json`, false, chatID))
     return res.json(jsonData);
 });
 app.post('/joinGroupChat', async (req, res) => {
@@ -226,9 +227,9 @@ app.post('/joinGroupChat', async (req, res) => {
     id: jsonData.userID,
     followedUserID: jsonData.followedUserID
   }
-  await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'participants', participant)
-  await pushValueIntoField(`${dbPath}users/${participant.id}/chats.json`, false, jsonData.chatID)
-  const thisChat = await readFile(`${dbPath}chats/${jsonData.chatID}.json`)
+  await pushValueIntoField(`groups/${jsonData.chatID}.json`, 'participants', participant)
+  await pushValueIntoField(`users/${participant.id}/group.json`, false, jsonData.chatID)
+  const thisChat = await readFile(`groups/${jsonData.chatID}.json`)
   return res.json(thisChat)
 });
 app.post('/sendMessageChat', async (req, res) => {
@@ -236,8 +237,8 @@ app.post('/sendMessageChat', async (req, res) => {
   const jsonData = JSON.parse(data);
   const messageID = String(uuidv4());
   const creationTime = new Date().getTime();
-
-  let { aesKey } = await readFile(`${dbPath}chats/${jsonData.chatID}.json`)
+  
+  let { aesKey } = await readFile(jsonData.chatPath)
   aesKey = Buffer.from(aesKey, 'hex')
   console.log(aesKey)
   const encryptedMsg = await encrypt(jsonData.message, aesKey)
@@ -250,12 +251,12 @@ app.post('/sendMessageChat', async (req, res) => {
     content: encryptedMsg,
     mediafiles: jsonData.mediafiles
   }
-  await pushValueIntoField(`${dbPath}chats/${jsonData.chatID}.json`, 'messages', message)
+  await pushValueIntoField(jsonData.chatPath, 'messages', message)
   return res.json(message)
 });
 app.post('/getChatInfo', async (req, res) => {
   const { path } = req.body;
-  let chatInfo = await readFile(dbPath + path);
+  let chatInfo = await readFile(path);
   if (chatInfo) {
     for (let index = 0; index < chatInfo.messages.length; index++) {
       const message = chatInfo.messages[index]
@@ -305,33 +306,33 @@ function pushValueIntoField(path, fieldName, value) {
 }
 function updateField(path, fieldName, newValue, elementFieldID, elementValueID) {
   return new Promise(async (resolve) => {
-    let data = await readFile(dbPath + path)
+    let data = await readFile(path)
     if (elementFieldID && elementValueID) {
       const elementIndex = data.findIndex(user => user[elementFieldID] === elementValueID);
       if (elementIndex === -1) return resolve({ message: `Field with ${elementValueID} not found` });
       data[elementIndex][fieldName] = newValue
     } else data[fieldName] = newValue
-    const response = await writeFile(dbPath + path, data)
+    const response = await writeFile(path, data)
     resolve(response)
   })
 }
 function deleteValue(path, fieldName, elementFieldID, elementValueID) {
   return new Promise(async (resolve) => {
-    let data = await readFile(dbPath + path)
+    let data = await readFile(path)
     if (elementFieldID && elementValueID) {
       const elementIndex = data.findIndex(user => user[elementFieldID] === elementValueID);
       if (elementIndex === -1) return resolve({ message: `Field with ${elementValueID} not found` });
       fieldName ? delete data[elementIndex][fieldName] : data.splice(elementIndex, 1)
     } else delete data[fieldName]
-    const response = await writeFile(dbPath + path, data)
+    const response = await writeFile(path, data)
     resolve(response)
   })
 }
 function createFolder(path) {
   return new Promise((resolve) => {
-    if (!fs.existsSync(path)) {
+    if (!fs.existsSync(dbPath + path)) {
       resolve(false)
-      fs.mkdir(path, (err) => {
+      fs.mkdir(dbPath + path, (err) => {
         if (err) return resolve(err)
       });
     }
@@ -345,7 +346,7 @@ function writeFile(path, value) {
       path = path + id  + '.json';
       value.id = id;
     }
-    fs.writeFile(path, JSON.stringify(value, null, 2), (err) => {
+    fs.writeFile(dbPath + path, JSON.stringify(value, null, 2), (err) => {
       if (err) console.error('Error writing to file:', err);
         console.log('Data has been written to file');
       resolve(value)
@@ -354,7 +355,7 @@ function writeFile(path, value) {
 }
 function readFile(path) {
   return new Promise((resolve) => {
-    fs.readFile(path, 'utf8', (err, data) => {
+    fs.readFile(dbPath + path, 'utf8', (err, data) => {
       if (data) resolve(JSON.parse(data))
       resolve(undefined)
     })
@@ -389,8 +390,8 @@ function makeCompare(password, hashedPassword) {
 }
 function getMedia(filePath) {
   return new Promise((resolve) => {
-    if (fs.existsSync(filePath)) {
-      resolve(filePath)
+    if (fs.existsSync(dbPath + filePath)) {
+      resolve(dbPath + filePath)
     } else {
       resolve(false)
     }
@@ -398,7 +399,7 @@ function getMedia(filePath) {
 }
 function sendMedia(filePath, newPath) {
   return new Promise((resolve) => {
-    fs.renameSync(filePath, newPath);
+    fs.renameSync(dbPath + filePath, newPath);
     if (req.file) {
       resolve('File uploaded successfully');
     } else {

@@ -1,8 +1,7 @@
 const serverPath = 'http://localhost:3000/'
-const dbPath = '../MessengerDB/'
 const db = {
     readFile: async (path) => {
-        const response = await fetch(serverPath + 'readFile?path=' + dbPath + path)
+        const response = await fetch(serverPath + 'readFile?path=' + path)
         if (!response.ok) return console.error('Failed to read');
         return response.json()
     }, 
@@ -15,7 +14,7 @@ const db = {
           },
           body: JSON.stringify({
             data: JSON.stringify(data, null, 2),
-            path: dbPath + path
+            path: path
           }) 
         })
         if (!response.ok) return console.error('Failed to write');
@@ -29,7 +28,7 @@ const db = {
           },
           body: JSON.stringify({
             data: JSON.stringify(data, null, 2),
-            path: dbPath + path,
+            path: path,
             fieldName: fieldName
           }) 
         })
@@ -87,18 +86,18 @@ const db = {
         console.error('Upload failed!');
       });
 
-      xhr.open('POST', `${serverPath}sendMedia?path=${dbPath + path + '/'}`);
+      xhr.open('POST', `${serverPath}sendMedia?path=${path + '/'}`);
       xhr.send(formData);
     },
     getMedia: async (path) => {
         const fileName = path.slice(path.lastIndexOf('/')+1, path.length)
         const basicPath = path.slice(0, path.lastIndexOf('/'))
-        const response = await fetch(serverPath + `getMedia/${fileName}?path=${dbPath + basicPath}`)
+        const response = await fetch(serverPath + `getMedia/${fileName}?path=${basicPath}`)
         if (!response.ok) return console.error('Failed to get media');
         return response.blob()
     },
     createFolder: async (path) => {
-        const response = await fetch(serverPath + `createFolder?path=${dbPath + path}`)
+        const response = await fetch(serverPath + `createFolder?path=${path}`)
         if (!response.ok) return console.error('Failed to create folder');
         return response
     },
@@ -117,8 +116,7 @@ const db = {
           body: JSON.stringify({
             login: login,
             password: password,
-            email: email,
-            path: dbPath
+            email: email
           }) 
         })
         if (!response.ok) console.error('Network response was not ok');
@@ -134,8 +132,7 @@ const db = {
           },
           body: JSON.stringify({
             login: login,
-            password: password,
-            path: dbPath
+            password: password
           }) 
         })
         if (!response.ok) console.error('Network response was not ok');
@@ -228,9 +225,9 @@ const db = {
         const responsedData = await response.json();
         return responsedData
     },
-    sendMessageChat: async (userID, chatID, message) => {
+    sendMessageChat: async (userID, chatPath, message) => {
         const data = {
-          chatID: chatID,
+          chatPath: chatPath,
           userID: userID,
           replied: false,
           mediafiles: [],
