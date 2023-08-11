@@ -15,26 +15,32 @@ const Chat = {
             const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value)
             console.log(response)
             msgInp.value = ''
-            group.messages.push(response)
             getGroupChatMsg(group)
         }
     },
 }
 export default Chat
 
-async function getGroupChatMsg(group) {
+async function getGroupChatMsg(thisGroup) {
     App.clear(contentArticle)
     const allUsers = await App.db.readFile('users.json')
+    const group = await App.db.getChatInfo(`groups/${thisGroup.id}.json`)
     for (const msg of group.messages) {
         insertElement(contentArticle, templates.messagesGroup, styles)
         const creator = allUsers.find(user => user.id == msg.userID)
-        const hours = new Date(msg.creationTime).getHours();
-        const minutes = new Date(msg.creationTime).getMinutes()
-        messagesGroup[messagesGroup.length-1].id = msg.id
-        messagesGroupAuthor[messagesGroupAuthor.length-1].innerText = creator.nickname
-        messagesGroupContent[messagesGroupContent.length-1].innerText = msg.content
-        messagesGroupTime[messagesGroupTime.length-1].innerText = `${hours}:${minutes}`
+        const hours = String(new Date(msg.creationTime).getHours()).padStart(2, '0')
+        const minutes = String(new Date(msg.creationTime).getMinutes()).padStart(2, '0')
+        messagesGroupAva.lastElement().id = msg.id
+        messagesGroupAuthor.lastElement().innerText = creator.nickname
+        messagesGroupContent.lastElement().innerText = msg.content
+        messagesGroupTime.lastElement().innerText = `${hours}:${minutes}`
+        messagesGroupAva.lastElement().style.justifySelf = creator.id !== App.thisUser.id ? 'start' : 'end';
+        messagesGroupAva.lastElement().style.gridTemplateColumns = creator.id !== App.thisUser.id ? '32px calc(100% - 32px)' : 'calc(100% - 32px) 32px ';
+        messagesGroup.lastElement().style.borderRadius = creator.id !== App.thisUser.id ? '10px 10px 10px 0px' : '10px 10px 0px 10px';
+        messagesGroup.lastElement().style.order = creator.id !== App.thisUser.id ? '1' : '0';
+        userMsgIcons.lastElement().style.placeSelf = creator.id !== App.thisUser.id ? 'end left' : 'end';
     }
+    messagesGroup.lastElement().scrollIntoView()
 }
 
 const templates = {
@@ -197,11 +203,9 @@ const styles = {
         messagesGroupAva: {
             'max-width': '75%',
             display: 'grid',
-            'grid-template-columns': 'calc(100% - 32px) 32px',
         },
         messagesGroup: {
             background: '#333333',
-            'border-radius': '10px',
             display: 'grid',
             'grid-template-rows': '25px calc(100% - 40px) 15px',
             padding: '10px',
@@ -222,13 +226,11 @@ const styles = {
         messagesGroupTime: {
             color: '#FFE7A8',
             'justify-self': 'end',
-            'font-size': '12px',
+            'font-size': '10px',
             'align-self': 'end',
         },
         userMsgIcons: {
             height: '28px',
-            'align-self': 'end',
-            'justify-self': 'end',
         }
     },
     tag: {

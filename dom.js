@@ -30,7 +30,7 @@ export function getAllDescendants(element) {
     descendants.push(child);
     descendants.push(...getAllDescendants(child));
   }
-
+  descendants.push(element)
   return descendants;
 }
 export function getDescendantsSelectors(allDescendants) {

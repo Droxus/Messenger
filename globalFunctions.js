@@ -3,7 +3,7 @@ import * as dom from '../dom.js'
 window.html = (result) => result[0]
 
 window.applyStyles = (element, styles) => {
-    const descendants = dom.getAllDescendants(element.parentElement)
+    const descendants = dom.getAllDescendants(element)
     const selectors = dom.getDescendantsSelectors(descendants)
     selectors.uniqueTags.forEach((element) => {
         if (styles.tag[element]) {
@@ -40,3 +40,6 @@ window.insertElement = (parentElement, element, styles) => {
 window.addEventListener("selectstart", function(event) {
     event.preventDefault();
 });
+Array.prototype.lastElement = function() {
+    return this[this.length-1]
+}

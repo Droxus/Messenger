@@ -89,7 +89,7 @@ const Auth = {
             const thisUserLocalIndex = localUsersData.findIndex(user => user.id == userData.id)
             if (thisUserLocalIndex !== -1) {
                 localUsersData[thisUserLocalIndex] = userData
-            } else localUsersData.push(userData) 
+            } else localUsersData.unshift(userData) 
         } else localUsersData = [userData]
         localStorage.setItem('localUsers', JSON.stringify(localUsersData))
         localUsersData = JSON.parse(localStorage.getItem('localUsers'))

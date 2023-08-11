@@ -46,8 +46,8 @@ const Home = {
             console.log(group)
             insertElement(groupsPage, templates.groupBlocks, styles)
             const creationTime = group.messages[group.messages.length-1].creationTime
-            const hours = new Date(creationTime).getHours();
-            const minutes = new Date(creationTime).getMinutes()
+            const hours = String(new Date(creationTime).getHours()).padStart(2, '0')
+            const minutes = String(new Date(creationTime).getMinutes()).padStart(2, '0')
             groupBlocks[groupBlocks.length-1].id = group.id
             groupNames[groupNames.length-1].innerText = group.name
             groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
