@@ -17,6 +17,24 @@ const Home = {
             event.target.style.color = 'white'
             footerBtn.innerText = event.target.innerText
         };
+        footerBtn.onclick = () => asideBlock.style.display = asideBlock.style.display == 'none' ? 'block' : 'none'
+        createBtnAside.onclick = () => {
+            switch (footerBtn.innerText) {
+                case 'Groups':
+                    asideBlock.style.display = 'none'
+                    createChatBlock.style.display = 'grid'
+
+                    break;
+            }
+        }
+        createChatCancelBtn.onclick = () => createChatBlock.style.display = 'none'
+        createChatCreateBtn.onclick = async () => {
+            const response = await App.db.createGroupChat(createChatNameInp.value, App.thisUser.id, [App.thisUser.id])
+            console.log(response)
+            asideBlock.style.display = 'none'
+            createChatBlock.style.display = 'grid'
+            groupsArticleBtn.click()
+        }
         groupsArticleBtn.click()
     },
     contactsPage: () => {
@@ -27,7 +45,6 @@ const Home = {
         const userChats = await App.db.readFile(`users/${App.thisUser.id}/chats.json`)
         for (const chatID of userChats) {
             const chat = await App.db.getChatInfo(`chats/${chatID}.json`)
-            console.log(chat)
             insertElement(chatsPage, templates.chatBlocks, styles)
             const creationTime = chat.messages[chat.messages.length-1].creationTime
             const hours = new Date(creationTime).getUTCHours();
@@ -41,17 +58,19 @@ const Home = {
     groupsPage: async () => {
         insertElement(contentArticle, templates.groupsPage, styles)
         const userGroups = await App.db.readFile(`users/${App.thisUser.id}/groups.json`)
+        console.log(userGroups)
         for (const groupID of userGroups) {
             const group = await App.db.getChatInfo(`groups/${groupID}.json`)
-            console.log(group)
             insertElement(groupsPage, templates.groupBlocks, styles)
-            const creationTime = group.messages[group.messages.length-1].creationTime
-            const hours = String(new Date(creationTime).getHours()).padStart(2, '0')
-            const minutes = String(new Date(creationTime).getMinutes()).padStart(2, '0')
+            if (group.messages.length > 0) {
+                const creationTime = group.messages[group.messages.length-1].creationTime
+                const hours = String(new Date(creationTime).getHours()).padStart(2, '0')
+                const minutes = String(new Date(creationTime).getMinutes()).padStart(2, '0')
+                groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
+                groupTimeMsg[groupLastMsg.length-1].innerText = `${hours}:${minutes}`
+            }
             groupBlocks[groupBlocks.length-1].id = group.id
             groupNames[groupNames.length-1].innerText = group.name
-            groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
-            groupTimeMsg[groupLastMsg.length-1].innerText = `${hours}:${minutes}`
             participantsNum[participantsNum.length-1].innerText = group.participants.length
             groupBlocks[groupBlocks.length-1].onclick = () => {if (group) Chat.groupChat(group)}
         }
@@ -84,6 +103,32 @@ const templates = {
             <footer>
                 <button id="footerBtn">Chats</button>
             </footer>
+            <aside id="asideBlock">
+                <div id="asideBtnBlock">
+                    <button class="asideBtns" id="editBtnAside">
+                        <img src="../img/editBtnIcon.svg">
+                        <label class="asideBtnsLbls">Edit</label>
+                    </button>
+                    <button class="asideBtns" id="createBtnAside">
+                        <img src="../img/addBtnIcon.svg">
+                        <label class="asideBtnsLbls">Create</label>
+                    </button>
+                    <button class="asideBtns" id="newFolderBtnAside">
+                        <img src="../img/folderIcon.svg">
+                        <label class="asideBtnsLbls">New Folder</label>
+                    </button>
+                </div>
+            </aside>
+            <aside id="createChatBlock">
+                <div id="createChatForm">
+                    <label id="createChatLbl">Input Chat Name</label>
+                    <input type="text" id="createChatNameInp">
+                    <div id="createChatBlockBtns">
+                        <button class="createChatBtns" id="createChatCancelBtn">Cancel</button>
+                        <button class="createChatBtns" id="createChatCreateBtn">Create</button>
+                    </div>
+                </div>
+            </aside>
         </div>
     `,
     chatsPage: html`
@@ -232,6 +277,48 @@ const styles = {
             'overflow-y': 'scroll',
             margin: '10px auto'
         },
+        asideBtnBlock: {
+            position: 'absolute',
+            bottom: '100px',
+            height: '64px',
+            width: '100vw',
+            'max-width': '1200px',
+            display: 'flex',
+            'justify-content': 'space-evenly',
+        },
+        createChatBlock: {
+            'z-index': '10',
+            'align-items': 'center',
+            'justify-items': 'center',
+        },
+        createChatForm: {
+            background: '#333333',
+            display: 'grid',
+            height: '100px',
+            width: '200px',
+            color: '#FFA8A8',
+            'border-radius': '10px',
+        },
+        createChatLbl: {
+            'text-align': 'center',
+            padding: '5px 0',
+        },
+        createChatNameInp: {
+            background: 'none',
+            border: 'none',
+            color: '#C0C0C0',
+            'border-bottom': '2px solid #C0C0C0',
+            padding: '0 10px',
+        },
+        createChatBlockBtns: {
+            display: 'flex'
+        },
+        createChatCancelBtn: {
+            color: '#FFE7A8'
+        },
+        createChatCreateBtn: {
+            color: '#AFFFA8'
+        }
     },
     class: {
         navHomePageBtns: {
@@ -358,10 +445,25 @@ const styles = {
             color: '#AFFFA8',
         },
         participantsNum: {
-            color: '#FFE7A8',
+            color: '#AFFFA8',
             margin: '0 5px 0 0',
             'font-size': '12px',
         },
+        asideBtns: {
+            width: '70px',
+            height: '100%',
+            background: 'none',
+        },
+        asideBtnsLbls: {
+            color: '#FFE7A8',
+            margin: '10px 0px',
+            'font-size': '14px',
+        },
+        createChatBtns: {
+            background: 'none',
+            border: 'none',
+            flex: '1',
+        }
     },
     tag: {
         header: {
@@ -386,7 +488,17 @@ const styles = {
 
         },
         footer: {
-            
+            'z-index': '10',
+        },
+        aside: {
+            width: '100vw',
+            height: '100vh',
+            display: 'none',
+            position: 'absolute',
+            background: 'rgba(0, 0, 0, 0.5)',
+            'backdrop-filter': 'blur(4px)',
+            'z-index': '5',
+            'max-width': '1200px',
         }
     }
 }

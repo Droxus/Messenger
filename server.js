@@ -115,7 +115,6 @@ app.get('/createFolder', (req, res) => {
 app.post('/signUp', async (req, res) => {
     const { login, password, email } = req.body
     const id = String(uuidv4())
-    console.log(login, password, email, id)
     allUsers = await readFile('users.json')
     if (allUsers.find(element => element.login == login)) return res.json({ message: 'User with this login is already registered' });
     hashedPassword = await makeHash(password)
@@ -128,7 +127,6 @@ app.post('/signUp', async (req, res) => {
     const newUser = { ...newUserPublic}
     newUser.email = email
     newUser.password = hashedPassword
-    console.log(newUser)
     await createFolder('users')
     await createFolder('users/' + id)
     await writeFile(`users/${id}/user.json`, newUser)
@@ -217,7 +215,9 @@ app.post('/createGroupChat', async (req, res) => {
 
     await createFolder('groups')
     await writeFile(`groups/${chatID}.json`, jsonData)
-    jsonData.participants.forEach(async (participant) => await pushValueIntoField(`users/${participant.id}/group.json`, false, chatID))
+    for (const participant of jsonData.participants) {
+      await pushValueIntoField(`users/${participant}/groups.json`, false, chatID)
+    }
     return res.json(jsonData);
 });
 app.post('/joinGroupChat', async (req, res) => {
@@ -228,7 +228,7 @@ app.post('/joinGroupChat', async (req, res) => {
     followedUserID: jsonData.followedUserID
   }
   await pushValueIntoField(`groups/${jsonData.chatID}.json`, 'participants', participant)
-  await pushValueIntoField(`users/${participant.id}/group.json`, false, jsonData.chatID)
+  await pushValueIntoField(`users/${participant.id}/groups.json`, false, jsonData.chatID)
   const thisChat = await readFile(`groups/${jsonData.chatID}.json`)
   return res.json(thisChat)
 });
@@ -240,7 +240,6 @@ app.post('/sendMessageChat', async (req, res) => {
   
   let { aesKey } = await readFile(jsonData.chatPath)
   aesKey = Buffer.from(aesKey, 'hex')
-  console.log(aesKey)
   const encryptedMsg = await encrypt(jsonData.message, aesKey)
 
   const message = {
@@ -293,7 +292,6 @@ function decrypt(encryptedData, key, iv) {
 function pushValueIntoField(path, fieldName, value) {
   return new Promise(async (resolve) => {
     let data = await readFile(path)
-    console.log(data)
     let thisData = fieldName ? data[fieldName] : data
     if (!Array.isArray(thisData)) thisData = [thisData]
     if (value.id) {

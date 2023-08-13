@@ -3,7 +3,6 @@ import Home from './Home.js'
 
 const Chat = {
     groupChat: async (group) => {
-        console.log(group)
         App.clear(appDiv)
         insertElement(appDiv, templates.groupChat, styles)
         chatName.innerText = group.name
@@ -40,6 +39,7 @@ async function getGroupChatMsg(thisGroup) {
         messagesGroup.lastElement().style.order = creator.id !== App.thisUser.id ? '1' : '0';
         userMsgIcons.lastElement().style.placeSelf = creator.id !== App.thisUser.id ? 'end left' : 'end';
     }
+    if (group.messages.length < 1) return undefined
     messagesGroup.lastElement().scrollIntoView()
 }
 
