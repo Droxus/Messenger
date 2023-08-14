@@ -1,5 +1,7 @@
 import App from '../App.js'
 import Chat from './Chat.js'
+import Profle from './Profile.js'
+import Settings from './Settings.js'
 
 const Home = {
     start: () => {
@@ -18,6 +20,8 @@ const Home = {
             footerBtn.innerText = event.target.innerText
         };
         footerBtn.onclick = () => asideBlock.style.display = asideBlock.style.display == 'none' ? 'block' : 'none'
+        profilePageBtn.onclick = () => Profle.start(App.thisUser.id)
+        settingsPageBtn.onclick = () => Settings.start()
         createBtnAside.onclick = () => {
             switch (footerBtn.innerText) {
                 case 'Groups':
@@ -483,6 +487,7 @@ const styles = {
             display: 'flex',
             padding: '0px 2%',
             gap: '5%',
+            'overflow-x': 'scroll',
         },
         article: {
 
