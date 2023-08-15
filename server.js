@@ -318,10 +318,15 @@ function deleteValue(path, fieldName, elementFieldID, elementValueID) {
   return new Promise(async (resolve) => {
     let data = await readFile(path)
     if (elementFieldID && elementValueID) {
-      const elementIndex = data.findIndex(user => user[elementFieldID] === elementValueID);
+      let thisData = Array.isArray(data) ? data : data[fieldName]
+      const elementIndex = thisData.findIndex(user => user[elementFieldID] == elementValueID);
       if (elementIndex === -1) return resolve({ message: `Field with ${elementValueID} not found` });
-      fieldName ? delete data[elementIndex][fieldName] : data.splice(elementIndex, 1)
-    } else delete data[fieldName]
+      fieldName && Array.isArray(data)  ? delete thisData[elementIndex][fieldName] : thisData.splice(elementIndex, 1)
+      Array.isArray(data) ? data = thisData : data[fieldName] = thisData
+    } else {
+      if (Array.isArray(data)) data = data.filter(element => element !== fieldName)
+      else delete data[fieldName]
+    }
     const response = await writeFile(path, data)
     resolve(response)
   })

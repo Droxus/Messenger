@@ -1,11 +1,15 @@
 import App from '../App.js'
 import Home from './Home.js'
+import Profile from './Profile.js'
 
 const Settings = {
     start: () => {
         App.clear(appDiv)
         insertElement(appDiv, templates.showThisUserBlock, styles)
+        profilePageBtn.onclick = Profile.showThisUser
         homePageBtn.onclick = Home.start
+        userNicknameInp.value = App.thisUser.nickname
+        userLoginInp.value = App.thisUser.login
     }
 }
 export default Settings
@@ -15,9 +19,9 @@ const templates = {
         <div id="showThisUserBlock">
             <header>
                 <div id="headerBlock">
-                    <button id="settingsPageBtn">Settings</button>
-                    <button id="findBtn">Find</button>
                     <button id="homePageBtn">Home</button>
+                    <button id="findBtn">Find</button>
+                    <button id="profilePageBtn">Profile</button>
                 </div>
             </header>
             <div id="profileInfo">
@@ -54,7 +58,7 @@ const styles = {
             'max-width': '1200px',
             margin: 'auto',
         },
-        settingsPageBtn: {
+        homePageBtn: {
             border: 'none',
             background: '#FFA8A8',
             width: '90%',
@@ -74,7 +78,7 @@ const styles = {
             'max-width': '300px',
             'font-weight': 'bold',
         },
-        homePageBtn: {
+        profilePageBtn: {
             border: 'none',
             background: '#AFFFA8',
             width: '90%',

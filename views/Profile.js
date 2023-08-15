@@ -2,25 +2,29 @@ import App from '../App.js'
 import Home from './Home.js'
 import Settings from './Settings.js'
 
-const Profle = {
+const Profile = {
     start: (userID) => {
         console.log('test')
         console.log(userID)
-        if (userID == App.thisUser.id) Profle.showThisUser()
-        else Profle.showOtherUser()
-        settingsPageBtn.onclick = () => Settings.start()
+        if (userID == App.thisUser.id) Profile.showThisUser()
+        else Profile.showOtherUser()
     },
     showThisUser: () => {
         App.clear(appDiv)
         insertElement(appDiv, templates.showThisUserBlock, styles)
         homePageBtn.onclick = Home.start
+        settingsPageBtn.onclick = () => Settings.start()
+        userNicknameLbl.innerText = App.thisUser.nickname
+        userLoginLbl.innerText = App.thisUser.login
     },
     showOtherUser: () => {
         App.clear(appDiv)
         insertElement(appDiv, templates.showOtherUserBlock, styles)
+        homePageBtn.onclick = Home.start
+        settingsPageBtn.onclick = () => Settings.start()
     }
 }
-export default Profle
+export default Profile
 
 const templates = {
     showThisUserBlock: html`
@@ -40,15 +44,15 @@ const templates = {
             <nav>
                 <button class="navHomePageBtns" id="contactsArticleBtn" data-action="contactsPage">Contacts</button>
                 <button class="navHomePageBtns" id="chatsArticleBtn" data-action="chatsPage">Poster</button>
-                <button class="navHomePageBtns" id="groupsArticleBtn" data-action="groupsPage">Publics</button>
                 <button class="navHomePageBtns" id="publicsArticleBtn" data-action="publicsPage">Media</button>
+                <button class="navHomePageBtns" id="groupsArticleBtn" data-action="groupsPage">Publics</button>
                 <button class="navHomePageBtns" id="publicsArticleBtn" data-action="publicsPage">Music</button>
             </nav>
             <article id="contentArticle">
                 
             </article>
             <footer>
-                <button id="footerBtn">Profle</button>
+                <button id="footerBtn">Profile</button>
             </footer>
         </div>
     `,

@@ -18,12 +18,65 @@ const Chat = {
             getGroupChatMsg(group)
         }
     },
-    infoBlock: (group) => {
+    infoBlock: async (thisGroup) => {
         App.clear(appDiv)
         insertElement(appDiv, templates.infoBlock, styles)
+        const group = await App.db.readFile(`groups/${thisGroup.id}.json`)
         backPageBtn.onclick = Home.homePage
         backPageInfoBtn.onclick = () => Chat.groupChat(group)
-    }
+        chatNameInfoLbl.innerText = group.name
+        numMembersInfoLbl.innerText =  `${group.participants.length} members`
+        navInfoBlock.onclick = (event) => {
+            if (!event.target.dataset.action) return undefined
+            App.clear(contentArticle)
+            Chat[event.target.dataset.action](group)
+            navChatInfoPageBtns.forEach(btn => btn.style.color = '#C0C0C0')
+            event.target.style.color = 'white'
+        };
+        membersArticleBtn.click()
+    },
+    membersPage: async (group) => {
+        App.clear(contentArticle)
+        insertElement(contentArticle, templates.membersPageInfo, styles)
+        console.log(group)
+        let creator
+        for (const participant of group.participants) {
+            insertElement(membersPageInfo, templates.memberAdminPageInfo, styles)
+            const user = await App.db.readFile(`users/${participant.id}/user.json`)
+            console.log(user)
+            participantsName.lastElement().innerText = user.nickname
+            participantsLogin.lastElement().innerText = user.login
+            if (group.creator == user.id) creator = participantsRole.lastElement()
+            deleteUserBtn.lastElement().onclick = () => {
+                if (App.thisUser.id !== group.creator) return undefined
+                deleteUserInfoLbl.innerText = `Are you sure you want to remove ${user.login} from this group`
+                deleteUserInfo.style.display = 'grid'
+                deleteUserInfoAgreeBtn.setAttribute('deleteUserId', user.id)
+            }
+        }
+        deleteUserInfoCancelBtn.onclick = () => deleteUserInfo.style.display = 'none'
+        deleteUserInfoAgreeBtn.onclick = async (event) => {
+            const id = event.target.getAttribute('deleteUserId')
+            await App.db.deleteValue(`users/${id}/groups.json`, group.id)
+            await App.db.deleteValue(`groups/${group.id}.json`, 'participants', 'id', id)
+            deleteUserInfo.style.display = 'none'
+            Chat.infoBlock(group)
+        }
+        creator.innerText = 'Creator'
+        creator.style.color = '#FFE7A8'
+    },
+    mediaPage: () => {
+
+    },
+    filesPage: () => {
+
+    },
+    voicePage: () => {
+
+    },
+    settingsPage: () => {
+
+    },
 }
 export default Chat
 
@@ -96,19 +149,45 @@ const templates = {
             </header>
             <div id="profileInfo">
                 <img id="profileIcon" src="../img/avaPlaceholder.svg">
-                <label id="userNicknameLbl">Chat Name</label>
-                <label id="userLoginLbl">N members</label>
+                <label id="chatNameInfoLbl">Chat Name</label>
+                <label id="numMembersInfoLbl">N members</label>
             </div>
             <nav id="navInfoBlock">
-                <button class="navHomePageBtns" id="contactsArticleBtn" data-action="contactsPage">Contacts</button>
-                <button class="navHomePageBtns" id="chatsArticleBtn" data-action="chatsPage">Poster</button>
-                <button class="navHomePageBtns" id="groupsArticleBtn" data-action="groupsPage">Publics</button>
-                <button class="navHomePageBtns" id="publicsArticleBtn" data-action="publicsPage">Media</button>
-                <button class="navHomePageBtns" id="publicsArticleBtn" data-action="publicsPage">Music</button>
+                <button class="navChatInfoPageBtns" id="membersArticleBtn" data-action="membersPage">Members</button>
+                <button class="navChatInfoPageBtns" id="mediaArticleBtn" data-action="mediaPage">Media</button>
+                <button class="navChatInfoPageBtns" id="filesArticleBtn" data-action="filesPage">Files</button>
+                <button class="navChatInfoPageBtns" id="voiceArticleBtn" data-action="voicePage">Voice</button>
+                <button class="navChatInfoPageBtns" id="settingsArticleBtn" data-action="settingsPage">Settings</button>
             </nav>
             <article id="contentArticle">
                 
             </article>
+            <aside id="deleteUserInfo">
+                <div id="deleteUserInfoForm">
+                    <label id="deleteUserInfoLbl">Are you sure?</label>
+                    <div id="deleteUserInfoBtns">
+                        <button class="deleteUserInfoBtns" id="deleteUserInfoCancelBtn">Cancel</button>
+                        <button class="deleteUserInfoBtns" id="deleteUserInfoAgreeBtn">Yes</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    `,
+    membersPageInfo: html`
+        <div id="membersPageInfo"></div>
+    `,
+    memberAdminPageInfo: html`
+        <div class="memberAdminPageInfo">
+            <img class="participantIcon" src="../img/avaPlaceholder.svg">
+            <div class="participantsInfoBlock">
+                <label class="participantsName">Participant Name</label>
+                <label class="participantsLogin">Participant Login</label>
+            </div>
+            <div class="participantsInfoBlock">
+                <label class="participantsRole">New User</label> 
+                <label class="participantsIsOnline">Online</label>
+            </div>
+            <img class="deleteUserBtn" src="../img/cross.svg">
         </div>
     `,
 }
@@ -293,11 +372,11 @@ const styles = {
             width: '96px',
             'margin-top': '20px',
         },
-        userNicknameLbl: {
+        chatNameInfoLbl: {
             color: '#FFA8A8',
             'font-size': '16px',
         },
-        userLoginLbl: {
+        numMembersInfoLbl: {
             color: '#C0C0C0',
             'font-size': '14px',
             'margin-bottom': '30px',
@@ -312,6 +391,42 @@ const styles = {
             gap: '5%',
             'overflow-x': 'scroll',
         },
+        membersPageInfo:{
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            'overflow-y': 'scroll',
+            display: 'grid',
+            'grid-auto-rows': '50px',
+            gap: '10px',
+        },
+        deleteUserInfo: {
+            'z-index': '10',
+            'align-items': 'center',
+            'justify-items': 'center',
+        },
+        deleteUserInfoForm: {
+            background: '#333333',
+            display: 'grid',
+            height: '100px',
+            width: '250px',
+            color: '#FFA8A8',
+            'border-radius': '10px',
+        },
+        deleteUserInfoLbl: {
+            'text-align': 'center',
+            padding: '5px 0',
+            'white-space': 'normal',
+        },
+        deleteUserInfoBtns: {
+            display: 'flex'
+        },
+        deleteUserInfoCancelBtn: {
+            color: '#FFE7A8'
+        },
+        deleteUserInfoAgreeBtn: {
+            color: '#AFFFA8'
+        }
     },
     class: {
         chatIcons: {
@@ -352,7 +467,7 @@ const styles = {
         userMsgIcons: {
             height: '28px',
         },
-        navHomePageBtns: {
+        navChatInfoPageBtns: {
             background: 'none',
             color: '#C0C0C0'
         },
@@ -365,6 +480,49 @@ const styles = {
             padding: '0px 2%',
             gap: '5%',
             'overflow-x': 'scroll',
+        },
+        memberAdminPageInfo: {
+            height: '50px',
+            width: '100%',
+            display: 'grid',
+            'grid-template-columns':' 60px calc(100% - 200px) 100px 40px',
+            'justify-items': 'center',
+            'align-items': 'center',
+            'background': '#333333',
+            'border-radius': '10px',
+        },
+        participantsName: {
+            color: '#FFA8A8',
+            'font-size': '16px',
+            margin: '5px 20px',
+        },
+        participantsLogin: {
+            color: '#C0C0C0',
+            'font-size': '12px',
+            margin: '0 20px',
+        },
+        participantIcon: {
+            width: '36px',
+        },
+        participantsInfoBlock: {
+            width: '100%',
+            height: '100%',
+            display: 'grid',
+            'grid-template-rows': '55% 45%',
+        },
+        participantsRole: {
+            color: '#C0C0C0',
+            'font-size': '12px',
+            margin: '5px 0px',
+        },
+        participantsIsOnline: {
+            color: '#AFFFA8',
+            'font-size': '12px',
+        },
+        deleteUserInfoBtns: {
+            background: 'none',
+            border: 'none',
+            flex: '1',
         },
     },
     tag: {
@@ -382,6 +540,16 @@ const styles = {
         },
         footer: {
             
+        },
+        aside: {
+            width: '100vw',
+            height: '100vh',
+            display: 'none',
+            position: 'absolute',
+            background: 'rgba(0, 0, 0, 0.5)',
+            'backdrop-filter': 'blur(4px)',
+            'z-index': '5',
+            'max-width': '1200px',
         },
     }
 }
