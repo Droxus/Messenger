@@ -33,6 +33,10 @@ button {
     border: none;
     outline: none;
     cursor: pointer;
+    background: none;
+}
+button * {
+    cursor: pointer;
 }
 input {
     outline: none;

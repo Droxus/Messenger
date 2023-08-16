@@ -37,6 +37,10 @@ window.insertElement = (parentElement, element, styles) => {
     applyStyles(createdElement, styles)
     dom.createDomVariables()
 }
+window.showInsteadOf = (toShowElement, toHideElement, value) => {
+    toShowElement.style.display = value || 'grid'
+    toHideElement.style.display = 'none'
+}
 window.addEventListener("selectstart", function(event) {
     event.preventDefault();
 });

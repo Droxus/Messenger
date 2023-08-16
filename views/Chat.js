@@ -24,6 +24,7 @@ const Chat = {
         const group = await App.db.readFile(`groups/${thisGroup.id}.json`)
         backPageBtn.onclick = Home.homePage
         backPageInfoBtn.onclick = () => Chat.groupChat(group)
+        homePageBtn.onclick = Home.start
         chatNameInfoLbl.innerText = group.name
         numMembersInfoLbl.innerText =  `${group.participants.length} members`
         navInfoBlock.onclick = (event) => {
@@ -54,6 +55,7 @@ const Chat = {
                 deleteUserInfoAgreeBtn.setAttribute('deleteUserId', user.id)
             }
         }
+        addNewUserPageInfo.onclick = () => console.log('Add New User')
         deleteUserInfoCancelBtn.onclick = () => deleteUserInfo.style.display = 'none'
         deleteUserInfoAgreeBtn.onclick = async (event) => {
             const id = event.target.getAttribute('deleteUserId')
@@ -174,10 +176,14 @@ const templates = {
         </div>
     `,
     membersPageInfo: html`
-        <div id="membersPageInfo"></div>
+        <div id="membersPageInfo">
+            <button id="addNewUserPageInfo">
+                <label id="addNewUserLblPageInfo">Add New User</label>
+            </button>
+        </div>
     `,
     memberAdminPageInfo: html`
-        <div class="memberAdminPageInfo">
+        <button class="memberAdminPageInfo">
             <img class="participantIcon" src="../img/avaPlaceholder.svg">
             <div class="participantsInfoBlock">
                 <label class="participantsName">Participant Name</label>
@@ -188,7 +194,7 @@ const templates = {
                 <label class="participantsIsOnline">Online</label>
             </div>
             <img class="deleteUserBtn" src="../img/cross.svg">
-        </div>
+        </button>
     `,
 }
 const styles = {
@@ -426,7 +432,20 @@ const styles = {
         },
         deleteUserInfoAgreeBtn: {
             color: '#AFFFA8'
-        }
+        },
+        addNewUserPageInfo: {
+            height: '50px',
+            width: '100%',
+            display: 'grid',
+            'place-items': 'center',
+            border: '2px solid #333333',
+            'border-radius': '10px',
+            'box-sizing': 'border-box',
+        },
+        addNewUserLblPageInfo: {
+            'font-size': '14px',
+            color: '#C0C0C0',
+        },
     },
     class: {
         chatIcons: {

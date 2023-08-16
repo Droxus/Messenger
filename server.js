@@ -132,6 +132,7 @@ app.post('/signUp', async (req, res) => {
     await writeFile(`users/${id}/user.json`, newUser)
     await writeFile(`users/${id}/chats.json`, [])
     await writeFile(`users/${id}/groups.json`, [])
+    await writeFile(`users/${id}/contacts.json`, [])
     await pushValueIntoField('users.json', false, newUserPublic)
     if (newUser.id) return res.json(newUser);
     return res.json({ message: 'Failed to create new User' });
