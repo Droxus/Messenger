@@ -8,7 +8,8 @@ const Home = {
         console.log('test')
         Home.homePage()
     },
-    homePage: () => {
+    editMode: false,
+    homePage: (page) => {
         App.clear(appDiv)
         insertElement(appDiv, templates.homePage, styles)
         nav[0].onclick = (event) => {
@@ -26,7 +27,12 @@ const Home = {
             showInsteadOf(searchBlock, headerBlock);
             searchInp.focus()
         }
-        closeSearchBlockBtn.onclick = () => showInsteadOf(headerBlock, searchBlock)
+        closeSearchBlockBtn.onclick = () => {
+            showInsteadOf(headerBlock, searchBlock)
+            searchContactsBlock.style.display = 'flex'
+            searchInp.value = ''
+            searchInp.dispatchEvent(new Event('input'))
+        }
         searchInp.oninput = (event) => {
             const value = event.target.value.toLowerCase()
             const contentBlock = article[0].children[0]
@@ -35,21 +41,59 @@ const Home = {
             switch (contentBlock.id) {
                 case 'groupsPage':
                     groupBlocks.forEach(e => e.style.display = 'grid')
-                    filteredResult = groupNames.filter(group => !group.innerText.toLowerCase().includes(value)).map(lbl => lbl.parentElement.parentElement.parentElement).forEach(btn => btn.style.display = 'none')
-                    break;
+                    filteredResult = groupNames.filter(group => !group.innerText.toLowerCase().includes(value))
+                    filteredResult.map(lbl => lbl.parentElement.parentElement.parentElement).forEach(btn => btn.style.display = 'none')
+                    if (value) groupAddBlock.style.display = 'none'
+                    else groupAddBlock.style.display = 'grid'
+                break;
                 case 'contactsPage':
-                    contactBlocks.forEach(e => e.style.display = 'grid')
-                    filteredResult = userLoginLbl.filter(contact => !contact.innerText.toLowerCase().includes(value)).map(lbl => lbl.parentElement.parentElement).forEach(btn => btn.style.display = 'none')
-                    if (!filteredResult) filteredResult = []
-                    filteredResult.push(userNicknameLbl.filter(contact => !contact.innerText.toLowerCase().includes(value)).map(lbl => lbl.parentElement.parentElement).forEach(btn => btn.style.display = 'none'))
-                    break;
+                    if (searchContactsBlock.children.length > 2) {
+                        contactBlocks.forEach(e => e.style.display = 'grid')
+                        filteredResult = userLoginLbl.filter(contact => !contact.innerText.toLowerCase().includes(value))
+                        filteredResult.concat(userNicknameLbl.filter(contact => !contact.innerText.toLowerCase().includes(value)))
+                        filteredResult.map(lbl => lbl.parentElement.parentElement).forEach(btn => btn.style.display = 'none')
+                        const visibleContacts = contactBlocks.filter(contact => contact.style.display !== 'none')
+                        if (visibleContacts.length < 1) sortingLblBlock[0].style.display = 'none'
+                        else sortingLblBlock[0].style.display = 'flex'
+                    } else {
+                        sortingLblBlock[0].style.display = 'none'
+                    }
+                    fillGlobalSearchContactsBlock(value)
+                    if (value) {
+                        contactAddBlock.style.display = 'none'
+                        globalSearchContactsBlock.style.display = 'block'
+                    } else {
+                        contactAddBlock.style.display = 'grid'
+                        globalSearchContactsBlock.style.display = 'none'
+                    }
+                break;
             }
         }
         createBtnAside.onclick = () => {
             switch (footerBtn.innerText) {
                 case 'Groups':
                     showInsteadOf(createChatBlock, asideBlock)
-                    break;
+                    createChatNameInp.focus()
+                break;
+                case 'Contacts':
+                    showInsteadOf(searchBlock, headerBlock);
+                    searchInp.focus()
+                    searchContactsBlock.style.display = 'none'
+                    asideBlock.style.display = 'none'
+                break;
+            }
+        }
+        editBtnAside.onclick = () => {
+            switch (footerBtn.innerText) {
+                case 'Groups':
+
+                break;
+                case 'Contacts':
+                    Home.editMode = !Home.editMode
+                    callAndChatBlock.forEach(element => element.style.display = Home.editMode ? 'none' : 'grid')
+                    editCallAndChatBlock.forEach(element => element.style.display = Home.editMode ? 'grid' : 'none')
+                    asideBlock.style.display = 'none'
+                break;
             }
         }
         createChatCancelBtn.onclick = () => createChatBlock.style.display = 'none'
@@ -57,23 +101,49 @@ const Home = {
             const response = await App.db.createGroupChat(createChatNameInp.value, App.thisUser.id, [{ id: App.thisUser.id, followedUserID: false }])
             console.log(response)
             showInsteadOf(asideBlock, createChatBlock)
+            createChatBlock.style.display = 'none'
+            asideBlock.style.display = 'none'
             groupsArticleBtn.click()
         }
-        groupsArticleBtn.click()
+        switch (page) {
+            case 'contacts':
+                contactsArticleBtn.click()
+                break;
+        
+            default:
+                groupsArticleBtn.click()
+                break;
+        }
     },
     contactsPage: async () => {
+        App.clear(contentArticle)
         insertElement(contentArticle, templates.contactsPage, styles)
         const userContacts = await App.db.readFile(`users/${App.thisUser.id}/contacts.json`)
         console.log(userContacts)
+        if (userContacts.length > 0)
         for (const userID of userContacts) {
             const user = await App.db.readFile(`users/${userID}/user.json`)
             console.log(user)
-            insertElement(contactsPage, templates.contactBlocks, styles)
+            insertElement(searchContactsBlock, templates.contactBlocks, styles)
             userNicknameLbl.lastElement().innerText = user.nickname
             userLoginLbl.lastElement().innerText = user.login
+            contactBlocks.lastElement().id = user.id
+            contactBlocks.lastElement().onclick = () => {
+                Profile.showOtherUser(user)
+            }
+            removeContactBtn.lastElement().onclick = async () => {
+                await App.db.deleteValue(`users/${App.thisUser.id}/contacts.json`, user.id)
+                Home.homePage('contacts')
+            }
+        }
+        contactAddBlock.onclick = () => {
+            showInsteadOf(searchBlock, headerBlock);
+            searchInp.focus()
+            searchContactsBlock.style.display = 'none'
         }
     },
     chatsPage: async () => {
+        App.clear(contentArticle)
         insertElement(contentArticle, templates.chatsPage, styles)
         const userChats = await App.db.readFile(`users/${App.thisUser.id}/chats.json`)
         for (const chatID of userChats) {
@@ -89,6 +159,7 @@ const Home = {
         }
     },
     groupsPage: async () => {
+        App.clear(contentArticle)
         insertElement(contentArticle, templates.groupsPage, styles)
         const userGroups = await App.db.readFile(`users/${App.thisUser.id}/groups.json`)
         console.log(userGroups)
@@ -109,6 +180,7 @@ const Home = {
         }
         groupAddBlock.onclick = () => {
             showInsteadOf(createChatBlock, asideBlock)
+            createChatNameInp.focus()
         }
     },
     publicsPage: async () => {
@@ -116,6 +188,29 @@ const Home = {
     },
 }
 export default Home
+
+async function fillGlobalSearchContactsBlock(value) {
+    globalSearchContactsBlock.style.display = 'block'
+    const users = await App.db.readFile('users.json')
+    const userContacts = await App.db.readFile(`users/${App.thisUser.id}/contacts.json`)
+    userContacts.push(App.thisUser.id)
+    let globalUsers = users.filter(user => !userContacts.includes(user.id))
+    let filteredUsers = globalUsers.filter(user => user.login.toLowerCase().includes(value))
+    let unfilteredUsers = globalUsers.filter(user => !user.login.toLowerCase().includes(value))
+    filteredUsers = filteredUsers.concat(unfilteredUsers.filter(user => user.nickname.toLowerCase().includes(value)))
+    App.clear(globalSearchContactsBtnsBlock)
+    for (const user of filteredUsers) {
+        insertElement(globalSearchContactsBtnsBlock, templates.globalContactBlocks, styles)
+        globalUserNicknameLbl.lastElement().innerText = user.nickname
+        globalUserLoginLbl.lastElement().innerText = user.login
+        addContactBtnBlock.lastElement().id = user.id
+        addContactBtnBlock.lastElement().onclick = async (event) => {
+            await App.db.push(`users/${App.thisUser.id}/contacts.json`, event.currentTarget.id)
+            Home.contactsPage()
+        }
+    }
+    if (filteredUsers.length < 1) globalSearchContactsBlock.style.display = 'none'
+}
 
 const templates = {
     homePage: html`
@@ -175,9 +270,24 @@ const templates = {
     `,
     contactsPage: html`
         <div id="contactsPage">
-            <button id="contactAddBlock">
-                <label>Add New Contact</label>
-            </button>
+            <div id="searchContactsBlock">
+                <button id="contactAddBlock">
+                    <label>Add New Contact</label>
+                </button>
+                <div class="sortingLblBlock">
+                    <label class="sortingLbl">Your Contacts</label>
+                    <hr class="sortingHr"/>
+                </div>
+            </div>
+            <div id="globalSearchContactsBlock">
+                <div class="sortingLblBlock">
+                    <label class="sortingLbl">Global Search</label>
+                    <hr class="sortingHr"/>
+                </div>
+                <div id="globalSearchContactsBtnsBlock">
+
+                </div>
+            </div>
         </div>
     `,
     chatsPage: html`
@@ -190,6 +300,10 @@ const templates = {
             <button id="groupAddBlock">
                 <label>Add New Group</label>
             </button>
+            <div class="sortingLblBlock">
+                <label class="sortingLbl">Your Groups</label>
+                <hr class="sortingHr"/>
+            </div>
         </div>
     `,
     publicsPage: html`
@@ -240,7 +354,6 @@ const templates = {
                         <label class="groupNumberOfUnreadMsg">0</label>
                         <img src="../img/msgIcon.svg">
                     </div>
-
                 </div>
                 <div>
                     <label class="participantsNum">0</label>
@@ -262,6 +375,30 @@ const templates = {
             <div class="callAndChatBlock">
                 <img src="../img/callIcon.svg">
                 <img src="../img/chatOpenIcon.svg">
+            </div>
+            <div class="editCallAndChatBlock">
+                <div></div>
+                <div class="addContactBtnBlock">
+                    <img src="../img/deleteUserIcon.svg" class="removeContactBtn">
+                </div>
+            </div>
+        </button>
+    `,
+    globalContactBlocks: html`
+        <button class="globalContactBlocks">
+            <div class="avaAndStatusBlock">
+                <img src="../img/avaPlaceholder.svg" class="userIcons">
+                <label class="isOnlineLbl">online</label>
+            </div>
+            <div class="nickAndLoginBlock">
+                <label class="globalUserNicknameLbl">User Nickname</label>
+                <label class="globalUserLoginLbl">User Login</label>
+            </div>
+            <div class="callAndChatBlock">
+                <div></div>
+                <div class="addContactBtnBlock">
+                    <img src="../img/addToContactsIcon.svg" class="addContactBtn">
+                </div>
             </div>
         </button>
     `,
@@ -361,9 +498,9 @@ const styles = {
         chatsPage: {
             width: '90%',
             height: 'calc(100% - 40px)',
-            display: 'grid',
+            display: 'flex',
             'justify-items': 'center',
-            'grid-auto-rows': '90px',
+            'flex-direction': '90px',
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
@@ -372,13 +509,13 @@ const styles = {
         groupsPage: {
             width: '90%',
             height: 'calc(100% - 40px)',
-            display: 'grid',
+            display: 'flex',
             'justify-items': 'center',
-            'grid-auto-rows': '90px',
+            'flex-direction': 'column',
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
-            margin: '10px auto'
+            margin: '5px auto'
         },
         asideBtnBlock: {
             position: 'absolute',
@@ -425,13 +562,13 @@ const styles = {
         contactsPage: {
             width: '90%',
             height: 'calc(100% - 40px)',
-            display: 'grid',
+            display: 'flex',
             'justify-items': 'center',
-            'grid-auto-rows': '65px',
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
-            margin: '10px auto'
+            margin: '5px auto',
+            'flex-direction': 'column',
         },
         contactAddBlock: {
             color: '#C0C0C0',
@@ -442,6 +579,7 @@ const styles = {
             'place-items': 'center',
             'font-size': '14px',
             order: '1',
+            margin: '5px 0px',
         },
         groupAddBlock: {
             color: '#C0C0C0',
@@ -452,6 +590,21 @@ const styles = {
             'place-items': 'center',
             'font-size': '14px',
             order: '1',
+            margin: '5px 0px',
+        },
+        globalSearchContactsBlock: {
+            width: '100%',
+            order: '1',
+            display: 'none',
+        },
+        searchContactsBlock: {
+            width: '100%',
+            order: '0',
+            display: 'flex',
+            'flex-direction': 'column',
+        },
+        globalSearchContactsBtnsBlock: {
+            width: '100%'
         },
     },
     class: {
@@ -524,6 +677,7 @@ const styles = {
             height: '75px',
             display: 'grid',
             'grid-template-rows': 'calc(100% - 20px) 20px',
+            margin: '5px 0px',
         },
         groupBlocksHead: {
             width: '100%',
@@ -585,7 +739,7 @@ const styles = {
             'font-size': '12px',
         },
         asideBtns: {
-            width: '70px',
+            width: '65px',
             height: '100%',
             background: 'none',
         },
@@ -606,6 +760,22 @@ const styles = {
             height: '50px',
             display: 'grid',
             'grid-template-columns': '60px calc(100% - 180px) 120px',
+            margin: '5px 0px',
+        },
+        globalContactBlocks: {
+            background: '#333333',
+            color: '#C0C0C0',
+            width: '100%',
+            height: '50px',
+            display: 'grid',
+            'grid-template-columns': '60px calc(100% - 180px) 120px',
+            margin: '5px 0px',
+        },
+        addContactBtnBlock: {
+            width: '100%',
+            height: '100%',
+            display: 'grid',
+            'place-items': 'center',
         },
         userIcons: {
             width: '36px',
@@ -631,6 +801,13 @@ const styles = {
             'align-items': 'center',
             'justify-items': 'center',
         },
+        editCallAndChatBlock: {
+            display: 'none',
+            height: '100%',
+            'grid-template-columns': '50% 50%',
+            'align-items': 'center',
+            'justify-items': 'center',
+        },
         userNicknameLbl: {
             'font-size': '16px',
             'text-align': 'left',
@@ -642,6 +819,35 @@ const styles = {
             'text-align': 'left',
             color: '#C0C0C0',
             width: '100%',
+        },
+        globalUserNicknameLbl: {
+            'font-size': '16px',
+            'text-align': 'left',
+            color: '#FFA8A8',
+            width: '100%',
+        },
+        globalUserLoginLbl: {
+            'font-size': '12px',
+            'text-align': 'left',
+            color: '#C0C0C0',
+            width: '100%',
+        },
+        sortingLblBlock: {
+            width: '100%',
+            display: 'flex',
+            'align-items': 'center',
+        },
+        sortingLbl: {
+            'font-size': '14px',
+            color: '#FFA8A8',
+            background: 'black',
+            'z-index': '2',
+            display: 'flex',
+            'padding-right': '40px',
+        },
+        sortingHr: {
+            border: '1px solid #FFA8A8',
+            width: '100%'
         },
     },
     tag: {

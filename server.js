@@ -217,7 +217,7 @@ app.post('/createGroupChat', async (req, res) => {
     await createFolder('groups')
     await writeFile(`groups/${chatID}.json`, jsonData)
     for (const participant of jsonData.participants) {
-      await pushValueIntoField(`users/${participant}/groups.json`, false, chatID)
+      await pushValueIntoField(`users/${participant.id}/groups.json`, false, chatID)
     }
     return res.json(jsonData);
 });

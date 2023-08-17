@@ -34,6 +34,34 @@ const Chat = {
             navChatInfoPageBtns.forEach(btn => btn.style.color = '#C0C0C0')
             event.target.style.color = 'white'
         };
+        findBtn.onclick = () => {
+            showInsteadOf(searchBlock, headerBlock);
+            searchInp.focus()
+        }
+        closeSearchBlockBtn.onclick = () => {
+            showInsteadOf(headerBlock, searchBlock)
+            searchInp.value = ''
+            searchInp.dispatchEvent(new Event('input'))
+        }
+        searchInp.oninput = (event) => {
+            const value = event.target.value.toLowerCase()
+            const contentBlock = article[0].children[0]
+            let filteredResult
+            switch (contentBlock.id) {
+                case 'membersPageInfo':
+                    memberAdminPageInfo.forEach(e => e.style.display = 'grid')
+                    filteredResult = participantsLogin.filter(member => !member.innerText.toLowerCase().includes(value))
+                    filteredResult.concat(participantsName.filter(member => !member.innerText.toLowerCase().includes(value)))
+                    filteredResult.map(lbl => lbl.parentElement.parentElement).forEach(btn => btn.style.display = 'none')
+                    if (value) addNewUserPageInfo.style.display = 'none'
+                    else addNewUserPageInfo.style.display = 'grid'
+                break;
+                case 'voicePageInfo':
+
+                break;
+            }
+        }
+        footerBtn.onclick = () => addMembersToGroup.style.display = 'none'
         membersArticleBtn.click()
     },
     membersPage: async (group) => {
@@ -55,7 +83,10 @@ const Chat = {
                 deleteUserInfoAgreeBtn.setAttribute('deleteUserId', user.id)
             }
         }
-        addNewUserPageInfo.onclick = () => console.log('Add New User')
+        addNewUserPageInfo.onclick = () => {
+            console.log('Add New User')
+            addMembersToGroup.style.display = 'grid'
+        }
         deleteUserInfoCancelBtn.onclick = () => deleteUserInfo.style.display = 'none'
         deleteUserInfoAgreeBtn.onclick = async (event) => {
             const id = event.target.getAttribute('deleteUserId')
@@ -148,6 +179,12 @@ const templates = {
                     <button id="findBtn">Find</button>
                     <button id="homePageBtn">Home</button>
                 </div>
+                <div id="searchBlock">
+                    <div id="searchInpBlock">
+                        <input type="text" id="searchInp" placeholder="Write to find">
+                        <button id="closeSearchBlockBtn"><img src="../img/cross.svg"></button>
+                    </div>
+                </div>
             </header>
             <div id="profileInfo">
                 <img id="profileIcon" src="../img/avaPlaceholder.svg">
@@ -173,6 +210,27 @@ const templates = {
                     </div>
                 </div>
             </aside>
+            <aside id="addMembersToGroup">
+                <div id="contactsPage">
+                    <div id="searchContactsBlock">
+                    <button class="memberAdminPageInfo">
+            <img class="participantIcon" src="../img/avaPlaceholder.svg">
+            <div class="participantsInfoBlock">
+                <label class="participantsName">Participant Name</label>
+                <label class="participantsLogin">Participant Login</label>
+            </div>
+            <div class="participantsInfoBlock">
+                <div></div>
+                <label class="participantsIsOnline">Online</label>
+            </div>
+            <img class="addUserBtn" src="../img/addToContactsIcon.svg">
+        </button>
+                    </div>
+                </div>
+                <footer>
+                    <button id="footerBtn">Close</button>
+                </footer>
+            </aside>
         </div>
     `,
     membersPageInfo: html`
@@ -194,6 +252,19 @@ const templates = {
                 <label class="participantsIsOnline">Online</label>
             </div>
             <img class="deleteUserBtn" src="../img/cross.svg">
+        </button>
+    `,
+    memberAddAdminPageInfo: html`
+        <button class="memberAdminPageInfo">
+            <img class="participantIcon" src="../img/avaPlaceholder.svg">
+            <div class="participantsInfoBlock">
+                <label class="participantsName">Participant Name</label>
+                <label class="participantsLogin">Participant Login</label>
+            </div>
+            <div class="participantsInfoBlock">
+                <label class="participantsIsOnline">Online</label>
+            </div>
+            <img class="addUserBtn" src="../img/addBtnIcon.svg">
         </button>
     `,
 }
@@ -339,6 +410,37 @@ const styles = {
             'max-width': '300px',
             'font-weight': 'bold',
         },
+        searchBlock: {
+            width: '100vw',
+            height: '100%',
+            display: 'none',
+            'gap': '5%',
+            'align-items': 'end',
+            'justify-items': 'center',
+            margin: '10px 0',
+            'max-width': '1200px'
+        },
+        searchInpBlock: {
+            width: '500px',
+            height: '25px',
+            'border-bottom': '2px solid #FFE7A8',
+            'border-radius': '10px',
+            display: 'flex',
+            padding: '0px 10px',
+            'max-width': '80vw',
+        },
+        searchInp: {
+            height: '100%',
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            color: '#C0C0C0',
+            'font-size': '16px',
+        },
+        closeSearchBlockBtn: {
+            width: '25px',
+            color: 'white',
+        },
         homePageBtn: {
             border: 'none',
             background: '#AFFFA8',
@@ -446,6 +548,27 @@ const styles = {
             'font-size': '14px',
             color: '#C0C0C0',
         },
+        addMembersToGroup: {
+            display: 'none',
+            'grid-template-rows': 'calc(100% - 80px) 80px',
+        },
+        contactsPage: {
+            width: '90%',
+            height: 'calc(100% - 40px)',
+            display: 'flex',
+            'justify-items': 'center',
+            'align-items': 'center',
+            'padding-top': '15px',
+            'overflow-y': 'scroll',
+            margin: '5px auto',
+            'flex-direction': 'column',
+        },
+        searchContactsBlock: {
+            width: '100%',
+            order: '0',
+            display: 'flex',
+            'flex-direction': 'column',
+        },
     },
     class: {
         chatIcons: {
@@ -542,6 +665,15 @@ const styles = {
             background: 'none',
             border: 'none',
             flex: '1',
+        },
+        contactBlocks: {
+            background: '#333333',
+            color: '#C0C0C0',
+            width: '100%',
+            height: '50px',
+            display: 'grid',
+            'grid-template-columns': '60px calc(100% - 180px) 120px',
+            margin: '5px 0px',
         },
     },
     tag: {

@@ -8,9 +8,8 @@ export const App = {
         Auth.start()
     },
     clear: (element) => {
-        const children = element.children;
-        for (const child of children) {
-            element.removeChild(child);
+        while (element.firstElementChild) {
+            element.firstElementChild.remove()
         }
     },
     db: db,
