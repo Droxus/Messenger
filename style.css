@@ -52,7 +52,7 @@ img {
     border-radius: 0;
 }
 ::-webkit-scrollbar {
-    width: 4px;
+    width: 2px;
     height: 2px;
   }
   
@@ -67,4 +67,11 @@ img {
   }
   ::-webkit-scrollbar-corner{
     display: none;
+  }
+  textarea::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+  }
+  audio::-webkit-media-controls-panel {
+    background-color: #FFE7A8;
   }

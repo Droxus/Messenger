@@ -10,12 +10,26 @@ const Chat = {
         infoPageBtn.onclick = () => Chat.infoBlock(group)
         getGroupChatMsg(group)
         sendMsg.onclick = async () => {
-            if (msgInp.value == '') return undefined
+            if (msgInp.value == '' && fileAttachBlock.children.length < 1) return undefined
             const userID = App.thisUser.id
-            const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value)
+            console.log(attachFileInp.files)
+            const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value, attachFileInp.files)
             console.log(response)
             msgInp.value = ''
             getGroupChatMsg(group)
+        }
+        msgInp.oninput = (event) => {
+            const value = event.target.value
+            if (value.length > 0) showInsteadOf(sendMsg, sendVoice, 'block')
+            else showInsteadOf(sendVoice, sendMsg, 'block')
+        }
+        attachFile.onclick = () => attachFileInp.click()
+        attachFileInp.oninput = (event) => {
+            if (event.target.files.length < 1) return showInsteadOf(sendVoice, sendMsg, 'block')
+            console.log(event.target.files)
+            fileAttachBlock.style.display = 'grid'
+            showAttachedFiles(event.target.files)
+            showInsteadOf(sendMsg, sendVoice, 'block')
         }
     },
     infoBlock: async (thisGroup) => {
@@ -67,33 +81,50 @@ const Chat = {
     membersPage: async (group) => {
         App.clear(contentArticle)
         insertElement(contentArticle, templates.membersPageInfo, styles)
-        console.log(group)
+        let thisGroup = group
+        console.log(thisGroup)
         let creator
-        for (const participant of group.participants) {
+        for (const participant of thisGroup.participants) {
             insertElement(membersPageInfo, templates.memberAdminPageInfo, styles)
             const user = await App.db.readFile(`users/${participant.id}/user.json`)
             console.log(user)
             participantsName.lastElement().innerText = user.nickname
             participantsLogin.lastElement().innerText = user.login
-            if (group.creator == user.id) creator = participantsRole.lastElement()
+            if (thisGroup.creator == user.id) creator = participantsRole.lastElement()
             deleteUserBtn.lastElement().onclick = () => {
-                if (App.thisUser.id !== group.creator) return undefined
+                if (App.thisUser.id !== thisGroup.creator) return undefined
                 deleteUserInfoLbl.innerText = `Are you sure you want to remove ${user.login} from this group`
                 deleteUserInfo.style.display = 'grid'
                 deleteUserInfoAgreeBtn.setAttribute('deleteUserId', user.id)
             }
         }
-        addNewUserPageInfo.onclick = () => {
-            console.log('Add New User')
+        addNewUserPageInfo.onclick = async () => {
             addMembersToGroup.style.display = 'grid'
+            App.clear(searchContactsBlock)
+            const groupParticipantsId = thisGroup.participants.map(participant => participant.id)
+            let contacts = await App.db.readFile(`users/${App.thisUser.id}/contacts.json`)
+            contacts = contacts.filter(contact => !groupParticipantsId.includes(contact))
+            const users = await App.db.readFile(`users.json`)
+            for (const contact of contacts) {
+                insertElement(searchContactsBlock, templates.memberAddAdminPageInfo, styles)
+                const thisUser = users.find(user => user.id == contact)
+                participantsName.lastElement().innerText = thisUser.nickname
+                participantsLogin.lastElement().innerText = thisUser.login
+                addUserBtn.lastElement().id = thisUser.id
+                addUserBtn.lastElement().onclick = async (event) => {
+                    thisGroup = await App.db.joinGroupChat(thisGroup.id, event.target.id, App.thisUser.id)
+                    addMembersToGroup.style.display = 'none'
+                    Chat.infoBlock(thisGroup)
+                }
+            }
         }
         deleteUserInfoCancelBtn.onclick = () => deleteUserInfo.style.display = 'none'
         deleteUserInfoAgreeBtn.onclick = async (event) => {
             const id = event.target.getAttribute('deleteUserId')
-            await App.db.deleteValue(`users/${id}/groups.json`, group.id)
-            await App.db.deleteValue(`groups/${group.id}.json`, 'participants', 'id', id)
+            await App.db.deleteValue(`users/${id}/groups.json`, thisGroup.id)
+            await App.db.deleteValue(`groups/${thisGroup.id}.json`, 'participants', 'id', id)
             deleteUserInfo.style.display = 'none'
-            Chat.infoBlock(group)
+            Chat.infoBlock(thisGroup)
         }
         creator.innerText = 'Creator'
         creator.style.color = '#FFE7A8'
@@ -117,7 +148,8 @@ async function getGroupChatMsg(thisGroup) {
     App.clear(contentArticle)
     const allUsers = await App.db.readFile('users.json')
     const group = await App.db.getChatInfo(`groups/${thisGroup.id}.json`)
-    for (const msg of group.messages) {
+    const messages = group.messages.reverse()
+    for (const msg of messages) {
         insertElement(contentArticle, templates.messagesGroup, styles)
         const creator = allUsers.find(user => user.id == msg.userID)
         const hours = String(new Date(msg.creationTime).getHours()).padStart(2, '0')
@@ -126,16 +158,67 @@ async function getGroupChatMsg(thisGroup) {
         messagesGroupAuthor.lastElement().innerText = creator.nickname
         messagesGroupContent.lastElement().innerText = msg.content
         messagesGroupTime.lastElement().innerText = `${hours}:${minutes}`
-        messagesGroupAva.lastElement().style.justifySelf = creator.id !== App.thisUser.id ? 'start' : 'end';
+        messagesGroupAva.lastElement().style.alignSelf = creator.id !== App.thisUser.id ? 'flex-start' : 'flex-end';
         messagesGroupAva.lastElement().style.gridTemplateColumns = creator.id !== App.thisUser.id ? '32px calc(100% - 32px)' : 'calc(100% - 32px) 32px ';
         messagesGroup.lastElement().style.borderRadius = creator.id !== App.thisUser.id ? '10px 10px 10px 0px' : '10px 10px 0px 10px';
         messagesGroup.lastElement().style.order = creator.id !== App.thisUser.id ? '1' : '0';
         userMsgIcons.lastElement().style.placeSelf = creator.id !== App.thisUser.id ? 'end left' : 'end';
     }
     if (group.messages.length < 1) return undefined
-    messagesGroup.lastElement().scrollIntoView()
+    messagesGroup[0].scrollIntoView()
 }
+function showAttachedFiles(files) {
+    App.clear(fileAttachBlock)
+    for (const file of files) {
+        const fileDiv = document.createElement('div');
+        const unattachButton = document.createElement('button');
+        const fileType = file.type.split('/')[0];
+        let fileElement;
 
+        if (fileType === 'image') {
+          fileElement = document.createElement('img');
+          fileElement.src = URL.createObjectURL(file);
+        } else if (fileType === 'video') {
+          fileElement = document.createElement('video');
+          fileElement.src = URL.createObjectURL(file);
+          fileElement.controls = true;
+        } else if (fileType === 'audio') {
+          fileElement = document.createElement('audio');
+          fileElement.src = URL.createObjectURL(file);
+          fileElement.controls = true;
+        } else {
+          const fileImgElement = document.createElement('img');
+          fileImgElement.src = '../img/folderIcon.svg'
+          fileDiv.appendChild(fileImgElement);
+          fileElement = document.createElement('p');
+          fileElement.textContent = file.name;
+        }
+        fileElement.style.maxHeight = '100%'
+        fileElement.style.maxWidth = '100%'
+        fileDiv.style.maxWidth = '80%'
+        fileDiv.style.maxHeight = '80%'
+        fileDiv.style.padding = '50px 0px'
+        fileElement.style.color = '#FFE7A8'
+        fileDiv.appendChild(fileElement);
+
+        const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+        const fileInfo = document.createElement('p');
+        fileInfo.textContent = `Type: ${fileType.toUpperCase()}, Size: ${fileSize} MB`;
+        fileInfo.style.color = '#C0C0C0'
+        unattachButton.style.color = '#FFA8A8'
+        unattachButton.innerText = 'Unattach'
+        fileDiv.appendChild(fileInfo);
+        fileDiv.appendChild(unattachButton);
+        unattachButton.addEventListener('click', () => {
+            fileAttachBlock.removeChild(fileDiv);
+            if (fileAttachBlock.children.length < 1) {
+                showInsteadOf(sendVoice, sendMsg, 'block')
+                fileAttachBlock.style.display = 'none'
+            }
+        });
+        fileAttachBlock.appendChild(fileDiv);
+    }
+}
 const templates = {
     groupChat: html`
         <div id="groupChat">
@@ -155,10 +238,15 @@ const templates = {
             </article>
             <footer>
                 <div id="footerBlock">
-                    <input id="msgInp" type="text" placeholder="Type Message">
+                    <button id="attachFile"><img id="attachFileIcon" src="../img/paperClipIcon.svg"><input type="file" multiple id="attachFileInp"></button>
+                    <textarea id="msgInp" type="text" placeholder="Type Message" rows="1" autofocus></textarea>
                     <button id="sendMsg"><img id="sendMsgIcon" src="../img/sendMsgIcon.svg"></button>
+                    <button id="sendVoice"><img id="sendVoiceIcon" src="../img/microIcon.svg"></button>
                 </div>
             </footer>
+            <aside id="fileAttachBlock">
+
+            </aside>
         </div>
     `,
     messagesGroup: html`
@@ -213,18 +301,7 @@ const templates = {
             <aside id="addMembersToGroup">
                 <div id="contactsPage">
                     <div id="searchContactsBlock">
-                    <button class="memberAdminPageInfo">
-            <img class="participantIcon" src="../img/avaPlaceholder.svg">
-            <div class="participantsInfoBlock">
-                <label class="participantsName">Participant Name</label>
-                <label class="participantsLogin">Participant Login</label>
-            </div>
-            <div class="participantsInfoBlock">
-                <div></div>
-                <label class="participantsIsOnline">Online</label>
-            </div>
-            <img class="addUserBtn" src="../img/addToContactsIcon.svg">
-        </button>
+
                     </div>
                 </div>
                 <footer>
@@ -255,16 +332,17 @@ const templates = {
         </button>
     `,
     memberAddAdminPageInfo: html`
-        <button class="memberAdminPageInfo">
+        <button class="memberAddAdminPageInfo">
             <img class="participantIcon" src="../img/avaPlaceholder.svg">
             <div class="participantsInfoBlock">
                 <label class="participantsName">Participant Name</label>
                 <label class="participantsLogin">Participant Login</label>
             </div>
             <div class="participantsInfoBlock">
+                <div></div>
                 <label class="participantsIsOnline">Online</label>
             </div>
-            <img class="addUserBtn" src="../img/addBtnIcon.svg">
+            <img class="addUserBtn" src="../img/addToContactsIcon.svg">
         </button>
     `,
 }
@@ -330,21 +408,18 @@ const styles = {
             'font-weight': 'bold',
             'border-radius': '10px',
             'display': 'grid',
-            'grid-template-columns': 'calc(100% - 50px) 50px',
+            'grid-template-columns': '50px calc(100% - 100px) 50px',
         },
         contentArticle: {
             width: '90%',
             height: 'calc(100% - 40px)',
-            display: 'grid',
-            'justify-items': 'end',
-            'grid-auto-rows': 'max-content',
-            'align-items': 'center',
+            display: 'flex',
             'padding-top': '15px',
-            'overflow-y': 'scroll',
             margin: '10px auto',
-            'overflow-x': 'hidden',
-            'overflow-y': 'scroll',
+            'overflow': 'hidden scroll',
             gap: '20px',
+            'flex-direction': 'column-reverse',
+            'align-items': 'flex-end',
         },
         groupHeader: {
             height: '50px',
@@ -364,19 +439,25 @@ const styles = {
             'place-self': 'center',
         },
         msgInp: {
-            height: '100%',
-            width: '100%',
+            height: 'calc(100% - 30px)',
+            width: 'calc(100% - 20px)',
             border: 'none',
             background: 'none',
             color: '#C0C0C0',
-            padding: '0 20px',
+            padding: '15px 20px',
             'font-size': '16px',
+            resize: 'none',
+            outline: 'none',
+        },
+        attachFileInp: {
+            display: 'none'
         },
         sendMsg: {
             height: '100%',
             width: '100%',
             border: 'none',
             background: 'none',
+            display: 'none'
         },
         sendMsgIcon: {
             height: '24px',
@@ -568,6 +649,13 @@ const styles = {
             order: '0',
             display: 'flex',
             'flex-direction': 'column',
+            gap: '10px',
+        },
+        fileAttachBlock: {
+            height: 'calc(100vh - 80px)',
+            'overflow-y': 'scroll',
+            'justify-items': 'center',
+            'align-items': 'center',
         },
     },
     class: {
@@ -587,12 +675,12 @@ const styles = {
             'grid-template-rows': '25px calc(100% - 40px) 15px',
             padding: '10px',
             height: 'max-content',
-            'border-bottom-right-radius': '0px',
             
         },
         messagesGroupAuthor: {
             color: '#FFA8A8',
             'font-size': '14px',
+            'padding-right': '10px',
         },
         messagesGroupContent: {
             color: '#C0C0C0',
@@ -624,6 +712,16 @@ const styles = {
             'overflow-x': 'scroll',
         },
         memberAdminPageInfo: {
+            height: '50px',
+            width: '100%',
+            display: 'grid',
+            'grid-template-columns':' 60px calc(100% - 200px) 100px 40px',
+            'justify-items': 'center',
+            'align-items': 'center',
+            'background': '#333333',
+            'border-radius': '10px',
+        },
+        memberAddAdminPageInfo: {
             height: '50px',
             width: '100%',
             display: 'grid',

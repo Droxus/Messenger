@@ -93,12 +93,16 @@ app.put('/deleteValue', async (req, res) => {
   const response = await deleteValue(path, fieldName, elementFieldID, elementValueID)
   return res.json(response)
 });
-app.post('/sendMedia', upload.single('file'), (req, res) => {
+app.post('/sendMedia', upload.single('file'), async (req, res) => {
   const file = req.file;
-  const pathParam =  req.query.path;
+  console.log('file: ', file)
+  const pathParam = req.query.path;
+  console.log('pathParam: ', pathParam)
   const uniqueFilename = uuidv4() + path.extname(file.originalname);
+  console.log('uniqueFilename: ', uniqueFilename)
   const newPath = pathParam + uniqueFilename
-  return sendMedia(file.path, newPath)
+  console.log('newPath: ', newPath)
+  return await sendMedia(file.path, newPath)
 });
 app.get('/getMedia/:filename', async (req, res) => {
   const filename = req.params.filename;
@@ -242,6 +246,20 @@ app.post('/sendMessageChat', async (req, res) => {
   let { aesKey } = await readFile(jsonData.chatPath)
   aesKey = Buffer.from(aesKey, 'hex')
   const encryptedMsg = await encrypt(jsonData.message, aesKey)
+  // let mediaFiles
+  // console.log('jsonData.mediafiles: 'jsonData.mediafiles)
+  // if (jsonData.mediafiles.length > 0) {
+  //   for (const mediaFile of jsonData.mediafiles) {
+  //     const file = await sendMedia('media', mediaFile)
+  //     mediaFiles.push(file)
+  //   }
+  // }
+  // console.log(mediaFiles)
+  
+    // const file = req.file;
+    // const pathParam =  req.query.path;
+    // const uniqueFilename = uuidv4() + path.extname(file.originalname);
+    // const newPath = pathParam + uniqueFilename
 
   const message = {
     id: messageID,

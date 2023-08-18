@@ -68,26 +68,30 @@ const db = {
         if (!response.ok) return console.error('Failed to delete');
         return response
     },
-    sendMedia: (path, file) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', event => {
-        if (event.lengthComputable) {
-          const percentage = Math.round((event.loaded / event.total) * 100);
-          console.log(`Uploading: ${percentage}%`);
-        }
-      });
-      xhr.addEventListener('load', () => {
-        console.log('Upload complete!');
-      });
-      xhr.addEventListener('error', () => {
-        console.error('Upload failed!');
-      });
-
-      xhr.open('POST', `${serverPath}sendMedia?path=${path + '/'}`);
-      xhr.send(formData);
+    sendMedia: async (path, file) => {
+      return new Promise((resolve) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const xhr = new XMLHttpRequest();
+  
+        xhr.upload.addEventListener('progress', event => {
+          if (event.lengthComputable) {
+            const percentage = Math.round((event.loaded / event.total) * 100);
+            console.log(`Uploading: ${percentage}%`);
+          }
+        });
+        xhr.addEventListener('load', () => {
+          console.log('Upload complete!');
+          resolve('Nice')
+        });
+        xhr.addEventListener('error', () => {
+          console.error('Upload failed!');
+          resolve('Error')
+        });
+  
+        xhr.open('POST', `${serverPath}sendMedia?path=${path + '/'}`);
+        xhr.send(formData);
+      })
     },
     getMedia: async (path) => {
         const fileName = path.slice(path.lastIndexOf('/')+1, path.length)
@@ -225,26 +229,31 @@ const db = {
         const responsedData = await response.json();
         return responsedData
     },
-    sendMessageChat: async (userID, chatPath, message) => {
+    sendMessageChat: async (userID, chatPath, message, mediafiles) => {
+        let sendMediaResponse 
+        if (mediafiles.length > 0) {
+          sendMediaResponse = await db.sendMedia('media', mediafiles[0])
+        }
         const data = {
           chatPath: chatPath,
           userID: userID,
           replied: false,
-          mediafiles: [],
+          mediafiles: [sendMediaResponse],
           message: message
         }
-        const response = await fetch(serverPath + 'sendMessageChat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            data: JSON.stringify(data, null, 2)
-          }) 
-        })
-        if (!response.ok) console.error('Network response was not ok');
-        const responsedData = await response.json();
-        return responsedData
+        console.log(sendMediaResponse)
+        // const response = await fetch(serverPath + 'sendMessageChat', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json'
+        //   },
+        //   body: JSON.stringify({
+        //     data: JSON.stringify(data, null, 2)
+        //   }) 
+        // })
+        // if (!response.ok) console.error('Network response was not ok');
+        // const responsedData = await response.json();
+        // return responsedData
     },
     getChatInfo: async (path) => {
       const response = await fetch(serverPath + 'getChatInfo', {

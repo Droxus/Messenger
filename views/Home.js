@@ -167,11 +167,16 @@ const Home = {
             const group = await App.db.getChatInfo(`groups/${groupID}.json`)
             insertElement(groupsPage, templates.groupBlocks, styles)
             if (group.messages.length > 0) {
-                const creationTime = group.messages[group.messages.length-1].creationTime
-                const hours = String(new Date(creationTime).getHours()).padStart(2, '0')
-                const minutes = String(new Date(creationTime).getMinutes()).padStart(2, '0')
+                const currentTime = new Date()
+                const creationTime = new Date(group.messages[group.messages.length-1].creationTime)
+                const hours = String(creationTime.getHours()).padStart(2, '0')
+                const minutes = String(creationTime.getMinutes()).padStart(2, '0')
+                const day = String(creationTime.getDay() + 1).padStart(2, '0')
+                const month = String(creationTime.getMonth() + 1).padStart(2, '0')
+                const year = String(creationTime.getFullYear()).padStart(4, '0')
+                const isToday = currentTime.getFullYear() === creationTime.getFullYear() && currentTime.getMonth() === creationTime.getMonth() && currentTime.getDate() === creationTime.getDate()
                 groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
-                groupTimeMsg[groupLastMsg.length-1].innerText = `${hours}:${minutes}`
+                groupTimeMsg[groupLastMsg.length-1].innerText = isToday ? `${hours}:${minutes}` : `${day}.${month}.${year}`
             }
             groupBlocks[groupBlocks.length-1].id = group.id
             groupNames[groupNames.length-1].innerText = group.name
@@ -504,7 +509,7 @@ const styles = {
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
-            margin: '10px auto'
+            margin: '0px auto'
         },
         groupsPage: {
             width: '90%',
@@ -515,7 +520,7 @@ const styles = {
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
-            margin: '5px auto'
+            margin: '0px auto'
         },
         asideBtnBlock: {
             position: 'absolute',
@@ -567,7 +572,7 @@ const styles = {
             'align-items': 'center',
             'padding-top': '15px',
             'overflow-y': 'scroll',
-            margin: '5px auto',
+            margin: '0px auto',
             'flex-direction': 'column',
         },
         contactAddBlock: {
@@ -836,6 +841,7 @@ const styles = {
             width: '100%',
             display: 'flex',
             'align-items': 'center',
+            'padding-top': '5px'
         },
         sortingLbl: {
             'font-size': '14px',
