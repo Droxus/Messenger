@@ -95,22 +95,23 @@ app.put('/deleteValue', async (req, res) => {
 });
 app.post('/sendMedia', upload.single('file'), async (req, res) => {
   const file = req.file;
-  console.log('file: ', file)
   const pathParam = req.query.path;
-  console.log('pathParam: ', pathParam)
   const uniqueFilename = uuidv4() + path.extname(file.originalname);
-  console.log('uniqueFilename: ', uniqueFilename)
   const newPath = pathParam + uniqueFilename
-  console.log('newPath: ', newPath)
-  return await sendMedia(file.path, newPath)
+
+  const response = await sendMedia(file, newPath)
+  return res.json(response)
 });
 app.get('/getMedia/:filename', async (req, res) => {
   const filename = req.params.filename;
   const reqPath = req.query.path
-  const filePath = path.join(__dirname, reqPath, filename);
-
-  const mediafile = await getMedia(filePath)
-  return res.sendFile(mediafile);
+  // const filePath = path.join(__dirname, reqPath, filename);
+  const filePath = path.join('D:/U/Programming/JS/Projects/MessengerDB/', reqPath, filename);
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.sendStatus(404);
+  }
 });
 app.get('/createFolder', (req, res) => {
   const path = req.query.path;
@@ -412,20 +413,20 @@ function makeCompare(password, hashedPassword) {
 }
 function getMedia(filePath) {
   return new Promise((resolve) => {
-    if (fs.existsSync(dbPath + filePath)) {
-      resolve(dbPath + filePath)
+    if (fs.existsSync(filePath)) {
+      resolve(filePath)
     } else {
       resolve(false)
     }
   })
 }
-function sendMedia(filePath, newPath) {
+function sendMedia(file, newPath) {
   return new Promise((resolve) => {
-    fs.renameSync(dbPath + filePath, newPath);
-    if (req.file) {
-      resolve('File uploaded successfully');
+    fs.renameSync(file.path, dbPath + newPath);
+    if (file) {
+      resolve(newPath);
     } else {
-      console.error('No file uploaded');
+      resolve('File uploaded successfully');
     }
   })
 }

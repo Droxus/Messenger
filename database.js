@@ -80,9 +80,9 @@ const db = {
             console.log(`Uploading: ${percentage}%`);
           }
         });
-        xhr.addEventListener('load', () => {
+        xhr.addEventListener('load', (file) => {
           console.log('Upload complete!');
-          resolve('Nice')
+          resolve(file)
         });
         xhr.addEventListener('error', () => {
           console.error('Upload failed!');
@@ -92,10 +92,12 @@ const db = {
         xhr.open('POST', `${serverPath}sendMedia?path=${path + '/'}`);
         xhr.send(formData);
       })
+
     },
     getMedia: async (path) => {
         const fileName = path.slice(path.lastIndexOf('/')+1, path.length)
         const basicPath = path.slice(0, path.lastIndexOf('/'))
+        console.log(fileName, basicPath)
         const response = await fetch(serverPath + `getMedia/${fileName}?path=${basicPath}`)
         if (!response.ok) return console.error('Failed to get media');
         return response.blob()
@@ -230,30 +232,32 @@ const db = {
         return responsedData
     },
     sendMessageChat: async (userID, chatPath, message, mediafiles) => {
-        let sendMediaResponse 
-        if (mediafiles.length > 0) {
-          sendMediaResponse = await db.sendMedia('media', mediafiles[0])
+        let sendMediaResponse = []
+        for (const mediaFile of mediafiles) {
+          console.log(mediaFile)
+          const pushedFile = await db.sendMedia('media', mediaFile)
+          sendMediaResponse.push(JSON.parse(pushedFile.currentTarget.response))
         }
         const data = {
           chatPath: chatPath,
           userID: userID,
           replied: false,
-          mediafiles: [sendMediaResponse],
+          mediafiles: sendMediaResponse,
           message: message
         }
         console.log(sendMediaResponse)
-        // const response = await fetch(serverPath + 'sendMessageChat', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json'
-        //   },
-        //   body: JSON.stringify({
-        //     data: JSON.stringify(data, null, 2)
-        //   }) 
-        // })
-        // if (!response.ok) console.error('Network response was not ok');
-        // const responsedData = await response.json();
-        // return responsedData
+        const response = await fetch(serverPath + 'sendMessageChat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(data, null, 2)
+          }) 
+        })
+        if (!response.ok) console.error('Network response was not ok');
+        const responsedData = await response.json();
+        return responsedData
     },
     getChatInfo: async (path) => {
       const response = await fetch(serverPath + 'getChatInfo', {

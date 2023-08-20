@@ -73,5 +73,5 @@ img {
     height: 0px;
   }
   audio::-webkit-media-controls-panel {
-    background-color: #FFE7A8;
+    background-color: rgb(51, 51, 51);
   }

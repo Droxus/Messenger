@@ -171,7 +171,7 @@ const Home = {
                 const creationTime = new Date(group.messages[group.messages.length-1].creationTime)
                 const hours = String(creationTime.getHours()).padStart(2, '0')
                 const minutes = String(creationTime.getMinutes()).padStart(2, '0')
-                const day = String(creationTime.getDay() + 1).padStart(2, '0')
+                const day = String(creationTime.getDate()).padStart(2, '0')
                 const month = String(creationTime.getMonth() + 1).padStart(2, '0')
                 const year = String(creationTime.getFullYear()).padStart(4, '0')
                 const isToday = currentTime.getFullYear() === creationTime.getFullYear() && currentTime.getMonth() === creationTime.getMonth() && currentTime.getDate() === creationTime.getDate()

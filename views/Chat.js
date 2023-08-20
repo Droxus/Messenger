@@ -16,6 +16,8 @@ const Chat = {
             const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value, attachFileInp.files)
             console.log(response)
             msgInp.value = ''
+            attachFileInp.value = ''
+            fileAttachBlock.style.display = 'none'
             getGroupChatMsg(group)
         }
         msgInp.oninput = (event) => {
@@ -30,6 +32,9 @@ const Chat = {
             fileAttachBlock.style.display = 'grid'
             showAttachedFiles(event.target.files)
             showInsteadOf(sendMsg, sendVoice, 'block')
+        }
+        showPhotoBlock.onclick = () => {
+            showPhotoBlock.style.display = 'none'
         }
     },
     infoBlock: async (thisGroup) => {
@@ -156,16 +161,62 @@ async function getGroupChatMsg(thisGroup) {
         const minutes = String(new Date(msg.creationTime).getMinutes()).padStart(2, '0')
         messagesGroupAva.lastElement().id = msg.id
         messagesGroupAuthor.lastElement().innerText = creator.nickname
-        messagesGroupContent.lastElement().innerText = msg.content
+        messagesGroupContentText.lastElement().innerText = msg.content
         messagesGroupTime.lastElement().innerText = `${hours}:${minutes}`
         messagesGroupAva.lastElement().style.alignSelf = creator.id !== App.thisUser.id ? 'flex-start' : 'flex-end';
         messagesGroupAva.lastElement().style.gridTemplateColumns = creator.id !== App.thisUser.id ? '32px calc(100% - 32px)' : 'calc(100% - 32px) 32px ';
         messagesGroup.lastElement().style.borderRadius = creator.id !== App.thisUser.id ? '10px 10px 10px 0px' : '10px 10px 0px 10px';
         messagesGroup.lastElement().style.order = creator.id !== App.thisUser.id ? '1' : '0';
         userMsgIcons.lastElement().style.placeSelf = creator.id !== App.thisUser.id ? 'end left' : 'end';
+        if (msg.mediafiles.length > 0) showMediafiles(msg.mediafiles, messagesGroupContent.lastElement())
     }
     if (group.messages.length < 1) return undefined
     messagesGroup[0].scrollIntoView()
+}
+async function showMediafiles(mediafiles, thisDiv) {
+    for (const mediafile of mediafiles) {
+        const response = await App.db.getMedia(mediafile)
+        console.log(response)
+        let fileElement;
+        switch (response.type.split('/')[0]) {
+            case 'image':
+                fileElement = document.createElement('img');
+                fileElement.src = URL.createObjectURL(response);
+                fileElement.onclick = (event) => {
+                    App.clear(showPhotoBlock)
+                    showPhotoBlock.style.display = 'flex'
+                    showPhotoBlock.appendChild(event.target.cloneNode(true))
+                }
+                break;
+            case 'video':
+                fileElement = document.createElement('video');
+                fileElement.src = URL.createObjectURL(response);
+                fileElement.controls = true;
+                break;
+            case 'audio':
+                fileElement = document.createElement('audio');
+                fileElement.src = URL.createObjectURL(response);
+                fileElement.controls = true;
+                break;
+            default:
+                const fileImgElement = document.createElement('img');
+                fileImgElement.src = '../img/folderIcon.svg'
+                fileImgElement.style.width = '42px'
+                fileImgElement.style.order = '1'
+                fileImgElement.style.margin = '15px 5px'
+                thisDiv.appendChild(fileImgElement);
+                fileElement = document.createElement('p');
+                fileElement.textContent = `Type: ${response.type.toUpperCase()}, Size: ${(response.size / (1024 * 1024)).toFixed(2)} MB`;;
+                fileElement.style.margin = '0 5px'
+                break;
+            }
+            fileElement.style.maxWidth = '100%'
+            fileElement.style.maxHeight = '100%'
+            fileElement.style.marginBottom = '10px'
+            fileElement.style.borderRadius = '10px'
+            fileElement.style.color = '#FFE7A8'
+            thisDiv.appendChild(fileElement);
+    }
 }
 function showAttachedFiles(files) {
     App.clear(fileAttachBlock)
@@ -174,24 +225,29 @@ function showAttachedFiles(files) {
         const unattachButton = document.createElement('button');
         const fileType = file.type.split('/')[0];
         let fileElement;
-
-        if (fileType === 'image') {
-          fileElement = document.createElement('img');
-          fileElement.src = URL.createObjectURL(file);
-        } else if (fileType === 'video') {
-          fileElement = document.createElement('video');
-          fileElement.src = URL.createObjectURL(file);
-          fileElement.controls = true;
-        } else if (fileType === 'audio') {
-          fileElement = document.createElement('audio');
-          fileElement.src = URL.createObjectURL(file);
-          fileElement.controls = true;
-        } else {
-          const fileImgElement = document.createElement('img');
-          fileImgElement.src = '../img/folderIcon.svg'
-          fileDiv.appendChild(fileImgElement);
-          fileElement = document.createElement('p');
-          fileElement.textContent = file.name;
+        switch (fileType) {
+            case 'image':
+                fileElement = document.createElement('img');
+                fileElement.src = URL.createObjectURL(file);
+                break;
+            case 'video':
+                fileElement = document.createElement('video');
+                fileElement.src = URL.createObjectURL(file);
+                fileElement.controls = true;
+                break;
+            case 'audio':
+                fileElement = document.createElement('audio');
+                fileElement.src = URL.createObjectURL(file);
+                fileElement.controls = true;
+                break;
+        
+            default:
+                const fileImgElement = document.createElement('img');
+                fileImgElement.src = '../img/folderIcon.svg'
+                fileDiv.appendChild(fileImgElement);
+                fileElement = document.createElement('p');
+                fileElement.textContent = file.name;
+                break;
         }
         fileElement.style.maxHeight = '100%'
         fileElement.style.maxWidth = '100%'
@@ -207,15 +263,25 @@ function showAttachedFiles(files) {
         fileInfo.style.color = '#C0C0C0'
         unattachButton.style.color = '#FFA8A8'
         unattachButton.innerText = 'Unattach'
+        unattachButton.id = file.name
         fileDiv.appendChild(fileInfo);
         fileDiv.appendChild(unattachButton);
-        unattachButton.addEventListener('click', () => {
+        console.log(attachFileInp.files)
+        unattachButton.onclick = (event) => {
+            const dt = new DataTransfer()
+            const { files } = attachFileInp
+            for (const thisFile of files) {
+                if (event.target.id == thisFile.name)
+                dt.items.add(thisFile)
+            }
+            attachFileInp.files = dt.files
             fileAttachBlock.removeChild(fileDiv);
             if (fileAttachBlock.children.length < 1) {
                 showInsteadOf(sendVoice, sendMsg, 'block')
                 fileAttachBlock.style.display = 'none'
+                attachFileInp.value = ''
             }
-        });
+        }
         fileAttachBlock.appendChild(fileDiv);
     }
 }
@@ -247,13 +313,18 @@ const templates = {
             <aside id="fileAttachBlock">
 
             </aside>
+            <aside id="showPhotoBlock">
+
+            </aside>
         </div>
     `,
     messagesGroup: html`
         <div class="messagesGroupAva">
             <div class="messagesGroup">
                 <label class="messagesGroupAuthor">Name</label>
-                <label class="messagesGroupContent">Text Message</label>
+                <div class="messagesGroupContent">
+                    <label class="messagesGroupContentText">Text Message</label>
+                </div>
                 <label class="messagesGroupTime">Time</label>
             </div>
             <img class="userMsgIcons" src="../img/avaPlaceholder.svg">
@@ -657,6 +728,11 @@ const styles = {
             'justify-items': 'center',
             'align-items': 'center',
         },
+        showPhotoBlock: {
+            'overflow-y': 'scroll',
+            'justify-items': 'center',
+            'align-items': 'center',
+        }
     },
     class: {
         chatIcons: {
@@ -672,21 +748,25 @@ const styles = {
         messagesGroup: {
             background: '#333333',
             display: 'grid',
-            'grid-template-rows': '25px calc(100% - 40px) 15px',
-            padding: '10px',
+            'grid-template-rows': '20px calc(100% - 35px) 15px',
+            padding: '5px',
             height: 'max-content',
             
         },
         messagesGroupAuthor: {
             color: '#FFA8A8',
             'font-size': '14px',
-            'padding-right': '10px',
+            'padding': '0px 15px 0px 5px',
         },
-        messagesGroupContent: {
+        messagesGroupContentText: {
             color: '#C0C0C0',
             'font-size': '14px',
             'white-space': 'break-spaces',
-            margin: '0px 15px 5px 5px',
+            margin: '0px 15px 0px 5px',
+        },
+        messagesGroupContent: {
+            display: 'flex',
+            'flex-direction': 'column-reverse',
         },
         messagesGroupTime: {
             color: '#FFE7A8',
