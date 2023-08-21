@@ -13,10 +13,15 @@ const Chat = {
             if (msgInp.value == '' && fileAttachBlock.children.length < 1) return undefined
             const userID = App.thisUser.id
             console.log(attachFileInp.files)
-            const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value, attachFileInp.files)
+            let mediaFiles = attachFileInp.files
+            if (audioChunks.length > 0) {
+                mediaFiles = audioChunks
+            }
+            const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value, mediaFiles)
             console.log(response)
             msgInp.value = ''
             attachFileInp.value = ''
+            audioChunks = []
             fileAttachBlock.style.display = 'none'
             getGroupChatMsg(group)
         }
@@ -29,12 +34,60 @@ const Chat = {
         attachFileInp.oninput = (event) => {
             if (event.target.files.length < 1) return showInsteadOf(sendVoice, sendMsg, 'block')
             console.log(event.target.files)
-            fileAttachBlock.style.display = 'grid'
             showAttachedFiles(event.target.files)
-            showInsteadOf(sendMsg, sendVoice, 'block')
         }
         showPhotoBlock.onclick = () => {
             showPhotoBlock.style.display = 'none'
+        }
+        let isVoiceRecording, mediaRecorder, audioChunks
+        const startRecording = () => {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+              mediaRecorder = new MediaRecorder(stream);
+              mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    const audioBlob = new Blob([event.data], { type: 'audio/wav', filename: 'voicemessage.wav' });
+                    audioChunks = [audioBlob]
+                    showAttachedFiles(audioChunks)
+                    console.log(audioChunks)
+                }
+              };
+              mediaRecorder.start();
+            });
+          };
+        sendVoice.onmousedown = () => {
+            isVoiceRecording = true
+            audioChunks = null;
+            startRecording();
+            fileAttachBlock.style.display = 'flex'
+            const contentP = document.createElement('p');
+            contentP.innerText = 'You are recording voice message now'
+            contentP.style.color = '#C0C0C0'
+            contentP.style.width = '100%'
+            contentP.style.textAlign = 'center'
+            fileAttachBlock.appendChild(contentP)
+        }
+        sendVoice.onmouseleave = () => {
+            if (isVoiceRecording) {
+                mediaRecorder.stop();
+                fileAttachBlock.style.display = 'none'
+                App.clear(fileAttachBlock)
+            }
+            isVoiceRecording = false
+        }
+        sendVoice.onmouseup = () => {
+            if (isVoiceRecording) {
+                mediaRecorder.stop();
+                fileAttachBlock.style.display = 'none'
+                App.clear(fileAttachBlock)
+            }
+            isVoiceRecording = false
+        }
+        sendEmoji.onclick = () => {
+            console.log('sendEmoji')
+            // const emojiPicker = new Emoji();
+
+            // Open the emoji picker.
+            // emojiPicker.open();
         }
     },
     infoBlock: async (thisGroup) => {
@@ -159,6 +212,7 @@ async function getGroupChatMsg(thisGroup) {
         const creator = allUsers.find(user => user.id == msg.userID)
         const hours = String(new Date(msg.creationTime).getHours()).padStart(2, '0')
         const minutes = String(new Date(msg.creationTime).getMinutes()).padStart(2, '0')
+        if (msg.id == 'undefined') console.log(msg)
         messagesGroupAva.lastElement().id = msg.id
         messagesGroupAuthor.lastElement().innerText = creator.nickname
         messagesGroupContentText.lastElement().innerText = msg.content
@@ -176,7 +230,6 @@ async function getGroupChatMsg(thisGroup) {
 async function showMediafiles(mediafiles, thisDiv) {
     for (const mediafile of mediafiles) {
         const response = await App.db.getMedia(mediafile)
-        console.log(response)
         let fileElement;
         switch (response.type.split('/')[0]) {
             case 'image':
@@ -205,9 +258,14 @@ async function showMediafiles(mediafiles, thisDiv) {
                 fileImgElement.style.order = '1'
                 fileImgElement.style.margin = '15px 5px'
                 thisDiv.appendChild(fileImgElement);
-                fileElement = document.createElement('p');
-                fileElement.textContent = `Type: ${response.type.toUpperCase()}, Size: ${(response.size / (1024 * 1024)).toFixed(2)} MB`;;
+                fileElement = document.createElement('a');
+                fileElement.href = URL.createObjectURL(response);
+                const fileName = fileElement.href.slice(fileElement.href.lastIndexOf('/')+1, fileElement.href.length)
                 fileElement.style.margin = '0 5px'
+                fileElement.target = '_blank';
+                fileElement.textContent = `Name: ${fileName + '.' + response.type.split('/')[1].split('-')[0]}, Size: ${(response.size / (1024 * 1024)).toFixed(2)} MB`;;
+                fileElement.download = fileName + '.' + response.type.split('/')[1].split('-')[0];
+                fileElement.style.textDecorationLine = 'none'
                 break;
             }
             fileElement.style.maxWidth = '100%'
@@ -215,10 +273,13 @@ async function showMediafiles(mediafiles, thisDiv) {
             fileElement.style.marginBottom = '10px'
             fileElement.style.borderRadius = '10px'
             fileElement.style.color = '#FFE7A8'
+            fileElement.loading = 'lazy'
             thisDiv.appendChild(fileElement);
     }
 }
 function showAttachedFiles(files) {
+    fileAttachBlock.style.display = 'grid'
+    showInsteadOf(sendMsg, sendVoice, 'block')
     App.clear(fileAttachBlock)
     for (const file of files) {
         const fileDiv = document.createElement('div');
@@ -306,6 +367,7 @@ const templates = {
                 <div id="footerBlock">
                     <button id="attachFile"><img id="attachFileIcon" src="../img/paperClipIcon.svg"><input type="file" multiple id="attachFileInp"></button>
                     <textarea id="msgInp" type="text" placeholder="Type Message" rows="1" autofocus></textarea>
+                    <button id="sendEmoji"><img id="sendEmojiIcon" src="../img/emojiIcon.svg"></button>
                     <button id="sendMsg"><img id="sendMsgIcon" src="../img/sendMsgIcon.svg"></button>
                     <button id="sendVoice"><img id="sendVoiceIcon" src="../img/microIcon.svg"></button>
                 </div>
@@ -479,7 +541,7 @@ const styles = {
             'font-weight': 'bold',
             'border-radius': '10px',
             'display': 'grid',
-            'grid-template-columns': '50px calc(100% - 100px) 50px',
+            'grid-template-columns': '50px calc(100% - 150px) 50px 50px',
         },
         contentArticle: {
             width: '90%',
@@ -515,7 +577,7 @@ const styles = {
             border: 'none',
             background: 'none',
             color: '#C0C0C0',
-            padding: '15px 20px',
+            padding: '15px 20px 15px 5px',
             'font-size': '16px',
             resize: 'none',
             outline: 'none',

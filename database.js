@@ -73,7 +73,9 @@ const db = {
         const formData = new FormData();
         formData.append('file', file);
         const xhr = new XMLHttpRequest();
-  
+        
+        console.log(file)
+        
         xhr.upload.addEventListener('progress', event => {
           if (event.lengthComputable) {
             const percentage = Math.round((event.loaded / event.total) * 100);
@@ -97,7 +99,6 @@ const db = {
     getMedia: async (path) => {
         const fileName = path.slice(path.lastIndexOf('/')+1, path.length)
         const basicPath = path.slice(0, path.lastIndexOf('/'))
-        console.log(fileName, basicPath)
         const response = await fetch(serverPath + `getMedia/${fileName}?path=${basicPath}`)
         if (!response.ok) return console.error('Failed to get media');
         return response.blob()

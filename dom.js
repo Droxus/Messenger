@@ -18,7 +18,9 @@ export function createDomVariables() {
       
       uniqueIds.forEach((id) => {
         if (id) {
-          window[id] = document.getElementById(id)
+          if (id !== 'undefined') {
+            window[id] = document.getElementById(id)
+          }
         }
       })
 }

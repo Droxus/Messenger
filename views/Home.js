@@ -175,7 +175,7 @@ const Home = {
                 const month = String(creationTime.getMonth() + 1).padStart(2, '0')
                 const year = String(creationTime.getFullYear()).padStart(4, '0')
                 const isToday = currentTime.getFullYear() === creationTime.getFullYear() && currentTime.getMonth() === creationTime.getMonth() && currentTime.getDate() === creationTime.getDate()
-                groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content
+                groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content || '*Attached File*'
                 groupTimeMsg[groupLastMsg.length-1].innerText = isToday ? `${hours}:${minutes}` : `${day}.${month}.${year}`
             }
             groupBlocks[groupBlocks.length-1].id = group.id

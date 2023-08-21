@@ -97,8 +97,8 @@ app.post('/sendMedia', upload.single('file'), async (req, res) => {
   const file = req.file;
   const pathParam = req.query.path;
   const uniqueFilename = uuidv4() + path.extname(file.originalname);
-  const newPath = pathParam + uniqueFilename
-
+  let newPath = pathParam + uniqueFilename
+  if (newPath.indexOf('.') == -1) newPath = newPath + '.' + file.mimetype.split('/')[1]
   const response = await sendMedia(file, newPath)
   return res.json(response)
 });
@@ -247,21 +247,6 @@ app.post('/sendMessageChat', async (req, res) => {
   let { aesKey } = await readFile(jsonData.chatPath)
   aesKey = Buffer.from(aesKey, 'hex')
   const encryptedMsg = await encrypt(jsonData.message, aesKey)
-  // let mediaFiles
-  // console.log('jsonData.mediafiles: 'jsonData.mediafiles)
-  // if (jsonData.mediafiles.length > 0) {
-  //   for (const mediaFile of jsonData.mediafiles) {
-  //     const file = await sendMedia('media', mediaFile)
-  //     mediaFiles.push(file)
-  //   }
-  // }
-  // console.log(mediaFiles)
-  
-    // const file = req.file;
-    // const pathParam =  req.query.path;
-    // const uniqueFilename = uuidv4() + path.extname(file.originalname);
-    // const newPath = pathParam + uniqueFilename
-
   const message = {
     id: messageID,
     creationTime: creationTime,
