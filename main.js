@@ -1,6 +1,7 @@
 import App from './App.js'
 
 App.start()
+
 // avatarImg.src = URL.createObjectURL(await db.getMedia('loaded/a4d42258-96af-4c03-af50-2f44b719621c.jpg'))
 // const userData = {
 //   id: Math.floor(Math.random() * Math.pow(10, 8)),

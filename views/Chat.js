@@ -14,15 +14,17 @@ const Chat = {
             const userID = App.thisUser.id
             console.log(attachFileInp.files)
             let mediaFiles = attachFileInp.files
-            if (audioChunks.length > 0) {
-                mediaFiles = audioChunks
-            }
+            if (audioChunks.length > 0) mediaFiles = audioChunks
             const response = await App.db.sendMessageChat(userID, `groups/${group.id}.json`, msgInp.value, mediaFiles)
             console.log(response)
             msgInp.value = ''
             attachFileInp.value = ''
             audioChunks = []
             fileAttachBlock.style.display = 'none'
+            if (document.getElementById('emojisBlock')) {
+                App.clear(document.getElementById('emojisBlock'))
+                document.getElementById('emojisBlock').remove()
+            }
             getGroupChatMsg(group)
         }
         msgInp.oninput = (event) => {
@@ -39,7 +41,7 @@ const Chat = {
         showPhotoBlock.onclick = () => {
             showPhotoBlock.style.display = 'none'
         }
-        let isVoiceRecording, mediaRecorder, audioChunks
+        let isVoiceRecording, mediaRecorder, audioChunks = []
         const startRecording = () => {
             navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
               mediaRecorder = new MediaRecorder(stream);
@@ -82,12 +84,41 @@ const Chat = {
             }
             isVoiceRecording = false
         }
-        sendEmoji.onclick = () => {
-            console.log('sendEmoji')
-            // const emojiPicker = new Emoji();
-
-            // Open the emoji picker.
-            // emojiPicker.open();
+        sendEmoji.onclick = async () => {
+            if (!document.getElementById('emojisBlock')) {
+                const response = await fetch('./localAPI/emojis.json')
+                const jsonData = await response.json()
+                const emojisBlock = document.createElement("div");
+                emojisBlock.style.backgroundColor = "#333333";
+                emojisBlock.style.width = "300px";
+                emojisBlock.style.height = "300px";
+                emojisBlock.style.position = "absolute";
+                emojisBlock.style.marginTop = "-315px";
+                const rect = sendEmoji.getBoundingClientRect();
+                const indentationSize = rect.left - 200;
+                emojisBlock.style.left = `${indentationSize}px`;
+                emojisBlock.id = 'emojisBlock'
+                emojisBlock.style.overflowY = 'scroll'
+                emojisBlock.style.padding = '5px'
+                emojisBlock.style.boxSizing = 'border-box'
+                emojisBlock.style.border = '2px solid #FFA8A8'
+                emojisBlock.style.borderRadius = '10px'
+                jsonData.forEach(emoji => {
+                    const emojieLbl = document.createElement("label");
+                    emojieLbl.innerText = emoji
+                    emojisBlock.appendChild(emojieLbl)
+                })
+                emojisBlock.onclick = (event) => {
+                    if (event.target.tagName == 'LABEL') {
+                        msgInp.value += event.target.innerText
+                        msgInp.dispatchEvent(new Event('input'))
+                    }
+                }
+                sendEmoji.parentElement.appendChild(emojisBlock);
+            } else {
+                App.clear(document.getElementById('emojisBlock'))
+                document.getElementById('emojisBlock').remove()
+            }
         }
     },
     infoBlock: async (thisGroup) => {
@@ -212,7 +243,12 @@ async function getGroupChatMsg(thisGroup) {
         const creator = allUsers.find(user => user.id == msg.userID)
         const hours = String(new Date(msg.creationTime).getHours()).padStart(2, '0')
         const minutes = String(new Date(msg.creationTime).getMinutes()).padStart(2, '0')
-        if (msg.id == 'undefined') console.log(msg)
+        let date = new Date(msg.creationTime).toLocaleString('en-us', { day:'numeric', month: 'long', year:'numeric' })
+        if (new Date(msg.creationTime).getFullYear() == new Date().getFullYear()) date = date.split(',')[0]
+        if (Array.from(document.getElementsByClassName('dateChatLbl')).length  < 1 || Array.from(document.getElementsByClassName('dateChatLbl')).lastElement().innerText !== date) {
+            insertElement(contentArticle, templates.dateChatBlock, styles)
+            dateChatLbl.lastElement().innerText = date
+        }
         messagesGroupAva.lastElement().id = msg.id
         messagesGroupAuthor.lastElement().innerText = creator.nickname
         messagesGroupContentText.lastElement().innerText = msg.content
@@ -392,6 +428,11 @@ const templates = {
             <img class="userMsgIcons" src="../img/avaPlaceholder.svg">
         </div>
     `,
+    dateChatBlock: html`
+        <div class="dateChatBlock">
+            <label class="dateChatLbl"></label>
+        </div>
+    `,
     infoBlock: html`
         <div id="infoBlock">
             <header>
@@ -550,7 +591,7 @@ const styles = {
             'padding-top': '15px',
             margin: '10px auto',
             'overflow': 'hidden scroll',
-            gap: '20px',
+            gap: '10px',
             'flex-direction': 'column-reverse',
             'align-items': 'flex-end',
         },
@@ -915,6 +956,20 @@ const styles = {
             'grid-template-columns': '60px calc(100% - 180px) 120px',
             margin: '5px 0px',
         },
+        dateChatBlock: {
+            background: '#333333',
+            'border-radius': '10px',
+            width: '100px',
+            padding: '5px',
+            display: 'grid',
+            'align-self': 'center',
+        },
+        dateChatLbl: {
+            color: '#C0C0C0',
+            'font-size': '14px',
+            'text-align': 'center',
+            width: '100%',
+        }
     },
     tag: {
         header: {

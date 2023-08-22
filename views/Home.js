@@ -171,12 +171,10 @@ const Home = {
                 const creationTime = new Date(group.messages[group.messages.length-1].creationTime)
                 const hours = String(creationTime.getHours()).padStart(2, '0')
                 const minutes = String(creationTime.getMinutes()).padStart(2, '0')
-                const day = String(creationTime.getDate()).padStart(2, '0')
-                const month = String(creationTime.getMonth() + 1).padStart(2, '0')
-                const year = String(creationTime.getFullYear()).padStart(4, '0')
                 const isToday = currentTime.getFullYear() === creationTime.getFullYear() && currentTime.getMonth() === creationTime.getMonth() && currentTime.getDate() === creationTime.getDate()
+                const date = new Date(creationTime).toLocaleString().split(',')[0]
                 groupLastMsg[groupLastMsg.length-1].innerText = group.messages[group.messages.length-1].content || '*Attached File*'
-                groupTimeMsg[groupLastMsg.length-1].innerText = isToday ? `${hours}:${minutes}` : `${day}.${month}.${year}`
+                groupTimeMsg[groupLastMsg.length-1].innerText = isToday ? `${hours}:${minutes}` : `${date}`
             }
             groupBlocks[groupBlocks.length-1].id = group.id
             groupNames[groupNames.length-1].innerText = group.name
